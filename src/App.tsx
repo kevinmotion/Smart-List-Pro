@@ -13,6 +13,7 @@ import { GroupsScreen } from './screens/GroupsScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { LobbyScreen } from './screens/LobbyScreen';
 import { GlobalSettingsScreen } from './screens/GlobalSettingsScreen';
+import { GlobalCatalogScreen } from './screens/GlobalCatalogScreen';
 import { AuthScreen } from './screens/AuthScreen';
 import { ChevronLeft, ShoppingCart, Home, PartyPopper, Plane, Gift, Utensils, Backpack, Car, Dog, Baby, Briefcase, GraduationCap, Heart, Dumbbell, Music, Camera, Gamepad2, Coffee, Pizza, IceCream, Sun, Moon, Cloud, TreeDeciduous, Mountain, Waves, Palette, Brush, Pen, Book, Users, User, Calendar, Package, Wallet, CreditCard, Smartphone, Laptop, Zap, Droplets, Flame, Hammer, Wrench, Shield, Key, Lock, Wallet2, ChevronDown, Check } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -36,12 +37,13 @@ export default function App() {
   useEffect(() => {
     if (!currentUser) return;
 
-    const q = query(
+    // Listen to lists
+    const qLists = query(
       collection(db, 'lists'),
       where('participants', 'array-contains', currentUser.uid)
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribeLists = onSnapshot(qLists, (snapshot) => {
       const fetchedLists: any[] = [];
       snapshot.forEach((doc) => {
         fetchedLists.push({ id: doc.id, ...doc.data() });
@@ -57,7 +59,26 @@ export default function App() {
       handleFirestoreError(error, OperationType.GET, 'lists');
     });
 
-    return () => unsubscribe();
+    // Listen to master_catalog
+    const qCatalog = query(
+      collection(db, 'master_catalog'),
+      where('ownerId', '==', currentUser.uid)
+    );
+
+    const unsubscribeCatalog = onSnapshot(qCatalog, (snapshot) => {
+      const fetchedCatalog: any[] = [];
+      snapshot.forEach((doc) => {
+        fetchedCatalog.push({ id: doc.id, ...doc.data() });
+      });
+      useStore.setState({ catalogItems: fetchedCatalog });
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'master_catalog');
+    });
+
+    return () => {
+      unsubscribeLists();
+      unsubscribeCatalog();
+    };
   }, [currentUser]);
 
   useEffect(() => {
@@ -176,10 +197,7 @@ export default function App() {
               <LobbyScreen />
             </div>
             <div className={globalTab === 'catalog' ? 'block h-full' : 'hidden'}>
-              <div className="flex flex-col items-center justify-center h-full p-6 text-center text-gray-500 dark:text-gray-400">
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Catálogo</h2>
-                <p>Próximamente...</p>
-              </div>
+              <GlobalCatalogScreen />
             </div>
             <div className={globalTab === 'settings' ? 'block h-full' : 'hidden'}>
               <GlobalSettingsScreen />

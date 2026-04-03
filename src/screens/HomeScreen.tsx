@@ -48,6 +48,7 @@ export const HomeScreen = () => {
     lists,
     activeListId,
     locations,
+    catalogItems,
   } = useStore();
 
   const activeList = lists.find((l) => l.id === activeListId);
@@ -98,6 +99,10 @@ export const HomeScreen = () => {
   const [isComparing, setIsComparing] = useState(false);
   const [isAddingAlternative, setIsAddingAlternative] = useState(false);
   const [altName, setAltName] = useState("");
+
+  // Import Bridge states
+  const [showImportMenu, setShowImportMenu] = useState(false);
+  const [showCatalogSheet, setShowCatalogSheet] = useState(false);
   const [masterLocationId, setMasterLocationId] = useState<string>("");
 
   useEffect(() => {
@@ -287,7 +292,7 @@ export const HomeScreen = () => {
       if (showFabMenu) {
         setShowFabMenu(false);
       } else {
-        setIsAdding(true);
+        setShowImportMenu(true);
       }
     }
   };
@@ -1036,7 +1041,7 @@ export const HomeScreen = () => {
         <div className={clsx("fixed inset-0 z-40 flex justify-center bg-black/50 backdrop-blur-sm", editingItemId ? "items-center p-4" : "items-start")}>
           <div className={clsx("bg-white dark:bg-notion-dark-bg w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in relative", editingItemId ? "rounded-3xl zoom-in-95" : "rounded-b-3xl slide-in-from-top-full")}>
             <button
-              onClick={() => setIsAdding(false)}
+              onClick={resetForm}
               className="absolute top-3 right-3 p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 z-10 bg-gray-100 dark:bg-gray-800 rounded-full"
             >
               <X size={16} />
@@ -1943,6 +1948,105 @@ export const HomeScreen = () => {
               >
                 <Download size={18} /> Descargar .txt
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Import Menu Action Sheet */}
+      {showImportMenu && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowImportMenu(false)} />
+          <div className="relative w-full max-w-md bg-white dark:bg-notion-dark-bg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-full sm:zoom-in-95 duration-300">
+            <div className="p-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center">
+              <h3 className="font-bold text-gray-900 dark:text-gray-100">Añadir Ítem</h3>
+              <button onClick={() => setShowImportMenu(false)} className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-4 space-y-3">
+              <button
+                onClick={() => {
+                  setShowImportMenu(false);
+                  setIsAdding(true);
+                }}
+                className="w-full flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-800 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-left"
+              >
+                <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg flex items-center justify-center shrink-0">
+                  <Plus size={20} />
+                </div>
+                <div>
+                  <div className="font-bold text-gray-900 dark:text-gray-100">Crear ítem desde cero</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">Añade un producto nuevo a tu lista</div>
+                </div>
+              </button>
+              <button
+                onClick={() => {
+                  setShowImportMenu(false);
+                  setShowCatalogSheet(true);
+                }}
+                className="w-full flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-800 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-left"
+              >
+                <div className="w-10 h-10 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg flex items-center justify-center shrink-0">
+                  <Package size={20} />
+                </div>
+                <div>
+                  <div className="font-bold text-gray-900 dark:text-gray-100">Importar del Catálogo Maestro</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">Usa una plantilla guardada</div>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Catalog Bottom Sheet */}
+      {showCatalogSheet && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowCatalogSheet(false)} />
+          <div className="relative w-full max-w-md bg-white dark:bg-notion-dark-bg rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col h-[80vh] sm:h-[600px] animate-in slide-in-from-bottom-full sm:zoom-in-95 duration-300">
+            <div className="p-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center shrink-0">
+              <h3 className="font-bold text-gray-900 dark:text-gray-100">Catálogo Maestro</h3>
+              <button onClick={() => setShowCatalogSheet(false)} className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              {catalogItems.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-center text-gray-500 dark:text-gray-400">
+                  <Package size={32} className="mb-2 opacity-50" />
+                  <p>Tu catálogo está vacío.</p>
+                  <p className="text-xs mt-1">Ve a la pestaña Catálogo para crear plantillas.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  {catalogItems.map(item => (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        setShowCatalogSheet(false);
+                        setName(item.name);
+                        setEmoji(item.emoji === '🛒' ? '' : item.emoji);
+                        setPresentation(item.presentation || '');
+                        setUnit(item.unitType || 'un');
+                        // Try to match category
+                        const matchedTag = tags.find(t => t.name.toLowerCase() === item.defaultCategory?.toLowerCase());
+                        if (matchedTag) {
+                          setTagId(matchedTag.id);
+                        }
+                        setIsAdding(true);
+                      }}
+                      className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3 text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border border-gray-100 dark:border-gray-700"
+                    >
+                      <div className="text-2xl mb-1">{item.emoji}</div>
+                      <div className="font-bold text-sm text-gray-900 dark:text-gray-100 line-clamp-2">{item.name}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        {item.presentation} {item.unitType}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

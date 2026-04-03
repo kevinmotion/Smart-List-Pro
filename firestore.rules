@@ -133,9 +133,23 @@ service cloud.firestore {
              isValidNumber('order', 0);
     }
 
+    function isValidCatalogItem() {
+      return hasRequiredFields(['ownerId', 'name']) &&
+             hasOnlyAllowedFields(['ownerId', 'name', 'emoji', 'presentation', 'unitType', 'defaultCategory']) &&
+             isValidString('name', 1, 100) &&
+             request.resource.data.ownerId == request.auth.uid;
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
+
+    match /master_catalog/{itemId} {
+      allow read: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
+      allow create: if isAuthenticated() && isValidCatalogItem();
+      allow update: if isAuthenticated() && resource.data.ownerId == request.auth.uid && isValidCatalogItem();
+      allow delete: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
+    }
 
     match /users/{userId} {
       allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());

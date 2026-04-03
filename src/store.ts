@@ -60,6 +60,16 @@ export type SmartList = {
 
 export type Location = { id: string; name: string; order?: number };
 
+export type CatalogItem = {
+  id: string;
+  ownerId: string;
+  name: string;
+  emoji: string;
+  presentation: string;
+  unitType: string;
+  defaultCategory: string;
+};
+
 export type Item = {
   id: string;
   name: string;
@@ -97,6 +107,7 @@ interface AppState {
   tags: Tag[];
   items: Item[];
   locations: Location[];
+  catalogItems: CatalogItem[];
   activeGroupId: string | null;
   theme: 'light' | 'dark' | 'system';
   exchangeRate: number;
@@ -131,6 +142,10 @@ interface AppState {
   removeItem: (id: string) => void;
   reorderItems: (items: Item[]) => void;
   setItems: (items: Item[]) => void;
+  setCatalogItems: (items: CatalogItem[]) => void;
+  addCatalogItem: (item: Omit<CatalogItem, 'id'>) => void;
+  updateCatalogItem: (id: string, item: Partial<CatalogItem>) => void;
+  removeCatalogItem: (id: string) => void;
   setActiveGroup: (id: string | null) => void;
   setTheme: (theme: 'light' | 'dark' | 'system') => void;
   setViewMode: (mode: 'compact' | 'spacious') => void;
@@ -168,6 +183,7 @@ export const useStore = create<AppState>()(
       tags: [],
       items: [],
       locations: [],
+      catalogItems: [],
       activeGroupId: null,
       theme: 'system',
       exchangeRate: 3.80,
@@ -381,6 +397,44 @@ export const useStore = create<AppState>()(
         set({ items: newItems });
       },
       setItems: (items) => set({ items }),
+      setCatalogItems: (catalogItems) => set({ catalogItems }),
+      addCatalogItem: (item) => {
+        const id = uuidv4();
+        const state = get();
+        const newItem = { ...item, id };
+        
+        if (state.currentUser) {
+          const itemRef = doc(db, 'master_catalog', id);
+          setDoc(itemRef, newItem).catch((error) => {
+            handleFirestoreError(error, OperationType.WRITE, `master_catalog/${id}`);
+          });
+        }
+        
+        set((state) => ({ catalogItems: [...state.catalogItems, newItem] }));
+      },
+      updateCatalogItem: (id, item) => {
+        const state = get();
+        const updatedItems = state.catalogItems.map(i => i.id === id ? { ...i, ...item } : i);
+        
+        if (state.currentUser) {
+          const itemRef = doc(db, 'master_catalog', id);
+          setDoc(itemRef, { ...state.catalogItems.find(i => i.id === id), ...item }, { merge: true }).catch((error) => {
+            handleFirestoreError(error, OperationType.WRITE, `master_catalog/${id}`);
+          });
+        }
+        
+        set({ catalogItems: updatedItems });
+      },
+      removeCatalogItem: (id) => {
+        const state = get();
+        if (state.currentUser) {
+          const itemRef = doc(db, 'master_catalog', id);
+          deleteDoc(itemRef).catch((error) => {
+            handleFirestoreError(error, OperationType.DELETE, `master_catalog/${id}`);
+          });
+        }
+        set({ catalogItems: state.catalogItems.filter(i => i.id !== id) });
+      },
       setActiveGroup: (id) => set({ activeGroupId: id }),
       setTheme: (theme) => set({ theme }),
       setViewMode: (viewMode) => set({ viewMode }),

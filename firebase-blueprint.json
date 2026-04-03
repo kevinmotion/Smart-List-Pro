@@ -100,9 +100,28 @@
         "order": { "type": "number" }
       },
       "required": ["id", "name", "quantity", "price", "groupId"]
+    },
+    "CatalogItem": {
+      "title": "CatalogItem",
+      "description": "A template item in the master catalog",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "name": { "type": "string" },
+        "emoji": { "type": "string" },
+        "presentation": { "type": "string" },
+        "unitType": { "type": "string" },
+        "defaultCategory": { "type": "string" }
+      },
+      "required": ["id", "ownerId", "name"]
     }
   },
   "firestore": {
+    "/master_catalog/{itemId}": {
+      "schema": { "$ref": "#/entities/CatalogItem" },
+      "description": "Master catalog templates per user"
+    },
     "/users/{userId}": {
       "schema": { "$ref": "#/entities/User" },
       "description": "User profiles for RBAC"
