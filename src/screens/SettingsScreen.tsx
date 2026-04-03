@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../store';
 import { db, handleFirestoreError, OperationType } from '../firebase';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { clsx } from 'clsx';
 import { Users, User, Settings, Save, Check, ShoppingCart, Home, PartyPopper, Plane, Gift, Utensils, Backpack, Car, Dog, Baby, Briefcase, GraduationCap, Heart, Dumbbell, Music, Camera, Gamepad2, Coffee, Pizza, IceCream, Sun, Moon, Cloud, TreeDeciduous, Mountain, Waves, Palette, Brush, Pen, Book, Calendar, Package, ChevronDown, Trash2, Wallet, CreditCard, Smartphone, Laptop, Zap, Droplets, Flame, Hammer, Wrench, Shield, Key, Lock } from 'lucide-react';
 import { LIST_COLORS, LIST_ICONS, NOTION_COLORS } from '../constants';
@@ -56,7 +56,7 @@ export const SettingsScreen = () => {
         currency,
         paymentMode: type === 'shared' ? paymentMode : 'detailed',
         exchangeRate,
-        updatedAt: new Date()
+        updatedAt: serverTimestamp()
       });
       // The local store will be updated via the onSnapshot listener in LobbyScreen
     } catch (error) {

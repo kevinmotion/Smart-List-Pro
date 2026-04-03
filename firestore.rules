@@ -115,7 +115,7 @@ service cloud.firestore {
              isValidString('name', 1, 100) &&
              isValidString('type', 1, 20) &&
              isValidListField('participants', 100) &&
-             isValidOptionalString('emoji', 1, 10) &&
+             isValidOptionalString('emoji', 1, 50) &&
              isValidOptionalString('color', 1, 50) &&
              isValidOptionalString('currency', 1, 10) &&
              isValidListField('people', 100) &&

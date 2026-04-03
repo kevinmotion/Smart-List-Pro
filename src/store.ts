@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 import localforage from 'localforage';
 import { v4 as uuidv4 } from 'uuid';
 import { db, handleFirestoreError, OperationType } from './firebase';
-import { doc, setDoc, deleteDoc, writeBatch } from 'firebase/firestore';
+import { doc, setDoc, deleteDoc, writeBatch, serverTimestamp } from 'firebase/firestore';
 
 export type Person = { 
   id: string; 
@@ -167,6 +167,7 @@ const syncListToFirestore = (state: AppState) => {
       groups: state.groups,
       tags: state.tags,
       locations: state.locations,
+      updatedAt: serverTimestamp()
     }, { merge: true }).catch((error) => {
       handleFirestoreError(error, OperationType.WRITE, `lists/${state.activeListId}`);
     });
@@ -330,7 +331,11 @@ export const useStore = create<AppState>()(
         
         if (state.activeListId && state.currentUser) {
           const itemRef = doc(db, 'lists', state.activeListId, 'items', id);
-          setDoc(itemRef, newItem).catch((error) => {
+          setDoc(itemRef, {
+            ...newItem,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+          }).catch((error) => {
             handleFirestoreError(error, OperationType.WRITE, `lists/${state.activeListId}/items/${id}`);
           });
         }
@@ -343,7 +348,11 @@ export const useStore = create<AppState>()(
         
         if (state.activeListId && state.currentUser) {
           const itemRef = doc(db, 'lists', state.activeListId, 'items', id);
-          setDoc(itemRef, { ...state.items.find(i => i.id === id), ...item }, { merge: true }).catch((error) => {
+          setDoc(itemRef, { 
+            ...state.items.find(i => i.id === id), 
+            ...item,
+            updatedAt: serverTimestamp()
+          }, { merge: true }).catch((error) => {
             handleFirestoreError(error, OperationType.WRITE, `lists/${state.activeListId}/items/${id}`);
           });
         }
@@ -387,7 +396,10 @@ export const useStore = create<AppState>()(
           const batch = writeBatch(db);
           reorderedItems.forEach((item, index) => {
             const itemRef = doc(db, 'lists', state.activeListId!, 'items', item.id);
-            batch.update(itemRef, { order: index });
+            batch.update(itemRef, { 
+              order: index,
+              updatedAt: serverTimestamp()
+            });
           });
           batch.commit().catch((error) => {
             handleFirestoreError(error, OperationType.WRITE, `lists/${state.activeListId}/items (batch)`);
