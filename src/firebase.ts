@@ -38,8 +38,9 @@ export interface FirestoreErrorInfo {
 }
 
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errorMessage = error instanceof Error ? error.message : String(error);
   const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
+    error: errorMessage,
     authInfo: {
       userId: auth.currentUser?.uid,
       email: auth.currentUser?.email,
@@ -57,5 +58,15 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     path
   }
   console.error('Firestore Error: ', JSON.stringify(errInfo));
+  
+  // Show alert to the user for debugging
+  if (errorMessage.includes('Missing or insufficient permissions')) {
+    alert(`Error de permisos al guardar en Firestore (${operationType} en ${path}). Verifica las reglas de seguridad.`);
+  } else if (errorMessage.includes('client is offline')) {
+    alert(`Error de conexión a Firestore. Verifica que la base de datos esté creada en la consola de Firebase.`);
+  } else {
+    alert(`Error de Firestore: ${errorMessage}`);
+  }
+  
   throw new Error(JSON.stringify(errInfo));
 }
