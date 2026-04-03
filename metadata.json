@@ -1,0 +1,7 @@
+{
+  "name": "Remix: Smart List PRO",
+  "description": "Gestión de compras grupales y presupuestos con Smart List.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

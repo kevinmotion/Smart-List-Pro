@@ -1,0 +1,21 @@
+{
+  "name": "Shop List",
+  "short_name": "Shop List",
+  "description": "Gestión de compras grupales y presupuestos.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#00ced1",
+  "icons": [
+    {
+      "src": "https://api.dicebear.com/7.x/initials/png?seed=SL&backgroundColor=00ced1&fontSize=50",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://api.dicebear.com/7.x/initials/png?seed=SL&backgroundColor=00ced1&fontSize=50",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

@@ -1,0 +1,125 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --color-text-default: #55534e;
+    --color-bg-default: #FFFFFF;
+    --color-pill-default: rgba(85,83,78,0.1);
+
+    --color-text-gray: #a6a299;
+    --color-bg-gray: #EBECED;
+    --color-pill-gray: rgba(166,162,153,0.15);
+
+    --color-text-brown: #9f6b53;
+    --color-bg-brown: #E9E5E3;
+    --color-pill-brown: rgba(159,107,83,0.15);
+
+    --color-text-yellow: #cb912f;
+    --color-bg-yellow: #FBF3DB;
+    --color-pill-yellow: rgba(203,145,47,0.15);
+
+    --color-text-orange: #d9730d;
+    --color-bg-orange: #FAEBDD;
+    --color-pill-orange: rgba(217,115,13,0.15);
+
+    --color-text-green: #448361;
+    --color-bg-green: #DDEDEA;
+    --color-pill-green: rgba(68,131,97,0.15);
+
+    --color-text-blue: #337ea9;
+    --color-bg-blue: #DDEBF1;
+    --color-pill-blue: rgba(51,126,169,0.15);
+
+    --color-text-purple: #9065b0;
+    --color-bg-purple: #EAE4F2;
+    --color-pill-purple: rgba(144,101,176,0.15);
+
+    --color-text-pink: #c14c8a;
+    --color-bg-pink: #F4DFEB;
+    --color-pill-pink: rgba(193,76,138,0.15);
+
+    --color-text-red: #d44c47;
+    --color-bg-red: #FBE4E4;
+    --color-pill-red: rgba(212,76,71,0.15);
+  }
+
+  .dark {
+    --color-text-default: #d3d3d3;
+    --color-bg-default: #2F3437;
+    --color-pill-default: rgba(211,211,211,0.15);
+
+    --color-text-gray: #7f7f7f;
+    --color-bg-gray: #454B4E;
+    --color-pill-gray: rgba(127,127,127,0.15);
+
+    --color-text-brown: #aa755f;
+    --color-bg-brown: #434040;
+    --color-pill-brown: rgba(170,117,95,0.15);
+
+    --color-text-yellow: #ca8e1b;
+    --color-bg-yellow: #59563B;
+    --color-pill-yellow: rgba(202,142,27,0.15);
+
+    --color-text-orange: #d87620;
+    --color-bg-orange: #594A3A;
+    --color-pill-orange: rgba(216,118,32,0.15);
+
+    --color-text-green: #2d9964;
+    --color-bg-green: #354C4B;
+    --color-pill-green: rgba(45,153,100,0.15);
+
+    --color-text-blue: #2e7cd1;
+    --color-bg-blue: #364954;
+    --color-pill-blue: rgba(46,124,209,0.15);
+
+    --color-text-purple: #8d5bc1;
+    --color-bg-purple: #443F57;
+    --color-pill-purple: rgba(141,91,193,0.15);
+
+    --color-text-pink: #c94079;
+    --color-bg-pink: #533B4C;
+    --color-pill-pink: rgba(201,64,121,0.15);
+
+    --color-text-red: #cd4945;
+    --color-bg-red: #594141;
+    --color-pill-red: rgba(205,73,69,0.15);
+  }
+}
+
+@theme {
+  --color-notion-bg: var(--color-bg-default);
+  --color-notion-text: var(--color-text-default);
+  --color-notion-dark-bg: var(--color-bg-default);
+  --color-notion-dark-text: var(--color-text-default);
+  --color-notion-dark-gray-bg: #454B4E;
+  --color-turquoise: #00ced1;
+}
+
+@variant dark (&:where(.dark, .dark *));
+
+@layer utilities {
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+html, body {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  touch-action: manipulation;
+  background-color: var(--color-bg-default);
+  color: var(--color-text-default);
+}
+
+.dark html, .dark body {
+  background-color: var(--color-bg-default);
+  color: var(--color-text-default);
+}

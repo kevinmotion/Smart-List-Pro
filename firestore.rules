@@ -1,0 +1,202 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: lists
+    // Document ID: auto-generated
+    // Fields:
+    //   - name: string (required, 1-100)
+    //   - emoji: string (optional, 1-10)
+    //   - color: string (optional, 1-50)
+    //   - type: string (required, 'solo' | 'shared')
+    //   - participants: list of strings (required, contains creator's UID)
+    //   - features: map (optional)
+    //   - currency: string (optional, 1-10)
+    //   - exchangeRate: number (optional)
+    //   - paymentMode: string (optional, 'detailed' | 'centralized')
+    //   - people: list of objects (optional)
+    //   - groups: list of objects (optional)
+    //   - tags: list of objects (optional)
+    //   - locations: list of objects (optional)
+    //   - createdAt: timestamp (required)
+    //   - updatedAt: timestamp (required)
+    //
+    // Subcollection: lists/{listId}/items
+    // Document ID: auto-generated
+    // Fields:
+    //   - name: string (required, 1-100)
+    //   - price: number (required, >= 0)
+    //   - quantity: number (required, > 0)
+    //   - unit: string (optional)
+    //   - currency: string (optional)
+    //   - tagId: string (optional)
+    //   - groupId: string (optional)
+    //   - locationId: string (optional)
+    //   - paidById: string (optional)
+    //   - order: number (required)
+    //   - createdAt: timestamp (required)
+    //   - updatedAt: timestamp (required)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (
+          (request.auth.token.email == "kevincarvallo97@gmail.com" && request.auth.token.email_verified == true) ||
+          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+        );
+    }
+
+    function isParticipant(listData) {
+      return isAuthenticated() && 
+             listData != null &&
+             'participants' in listData && 
+             listData.participants is list &&
+             request.auth.uid in listData.participants;
+    }
+
+    function hasOnlyAllowedFields(allowedFields) {
+      return request.resource.data.keys().hasOnly(allowedFields);
+    }
+
+    function hasRequiredFields(requiredFields) {
+      return request.resource.data.keys().hasAll(requiredFields);
+    }
+
+    function isValidString(field, minLen, maxLen) {
+      return request.resource.data[field] is string &&
+             request.resource.data[field].size() >= minLen &&
+             request.resource.data[field].size() <= maxLen;
+    }
+
+    function isValidOptionalString(field, minLen, maxLen) {
+      return !(field in request.resource.data) ||
+             (request.resource.data[field] is string &&
+              request.resource.data[field].size() >= minLen &&
+              request.resource.data[field].size() <= maxLen);
+    }
+
+    function isValidNumber(field, minVal) {
+      return request.resource.data[field] is number &&
+             request.resource.data[field] >= minVal;
+    }
+
+    function isValidListField(field, maxSize) {
+      return !(field in request.resource.data) ||
+             (request.resource.data[field] is list &&
+              request.resource.data[field].size() <= maxSize);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser() {
+      return hasRequiredFields(['uid', 'email', 'role', 'createdAt', 'updatedAt']) &&
+             hasOnlyAllowedFields(['uid', 'email', 'role', 'createdAt', 'updatedAt', 'displayName', 'photoURL']) &&
+             request.resource.data.role in ['admin', 'user'];
+    }
+
+    function isValidList() {
+      return hasRequiredFields(['name', 'type', 'participants', 'createdAt', 'updatedAt']) &&
+             hasOnlyAllowedFields(['name', 'emoji', 'color', 'type', 'participants', 'features', 'currency', 'exchangeRate', 'paymentMode', 'people', 'groups', 'tags', 'locations', 'createdAt', 'updatedAt']) &&
+             isValidString('name', 1, 100) &&
+             isValidString('type', 1, 20) &&
+             isValidListField('participants', 100) &&
+             isValidOptionalString('emoji', 1, 10) &&
+             isValidOptionalString('color', 1, 50) &&
+             isValidOptionalString('currency', 1, 10) &&
+             isValidListField('people', 100) &&
+             isValidListField('groups', 100) &&
+             isValidListField('tags', 100) &&
+             isValidListField('locations', 100);
+    }
+
+    function isValidItem() {
+      return hasRequiredFields(['name', 'price', 'quantity', 'order', 'createdAt', 'updatedAt']) &&
+             hasOnlyAllowedFields(['name', 'price', 'quantity', 'unit', 'currency', 'tagId', 'groupId', 'locationId', 'paidById', 'order', 'createdAt', 'updatedAt', 'photoId', 'alternatives', 'loserAlternative', 'alternativePrice', 'isPaid']) &&
+             isValidString('name', 1, 100) &&
+             isValidNumber('price', 0) &&
+             isValidNumber('quantity', 0) &&
+             isValidNumber('order', 0);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow create: if isAuthenticated() && request.auth.uid == userId && isValidUser() && request.resource.data.role == 'user';
+      allow update: if isAuthenticated() && (request.auth.uid == userId || isAdmin()) && isValidUser() && (request.resource.data.role == resource.data.role || isAdmin());
+    }
+
+    match /lists/{listId} {
+      allow create: if isAuthenticated() && 
+                      request.auth.uid in request.resource.data.participants &&
+                      isValidList();
+      
+      allow get: if isAdmin() || isParticipant(resource.data);
+      allow list: if isAuthenticated();
+      
+      allow update: if isParticipant(resource.data) && 
+                      isParticipant(request.resource.data) &&
+                      isValidList();
+      
+      allow delete: if isParticipant(resource.data);
+
+      match /items/{itemId} {
+        allow get: if isParticipant(get(/databases/$(database)/documents/lists/$(listId)).data);
+        allow list: if isParticipant(get(/databases/$(database)/documents/lists/$(listId)).data);
+        
+        allow create: if isParticipant(get(/databases/$(database)/documents/lists/$(listId)).data) &&
+                        isValidItem();
+        
+        allow update: if isParticipant(get(/databases/$(database)/documents/lists/$(listId)).data) &&
+                        isValidItem();
+        
+        allow delete: if isParticipant(get(/databases/$(database)/documents/lists/$(listId)).data);
+      }
+
+      match /people/{personId} {
+        allow read, write: if isParticipant(get(/databases/$(database)/documents/lists/$(listId)).data);
+      }
+
+      match /groups/{groupId} {
+        allow read, write: if isParticipant(get(/databases/$(database)/documents/lists/$(listId)).data);
+      }
+
+      match /tags/{tagId} {
+        allow read, write: if isParticipant(get(/databases/$(database)/documents/lists/$(listId)).data);
+      }
+
+      match /locations/{locationId} {
+        allow read, write: if isParticipant(get(/databases/$(database)/documents/lists/$(listId)).data);
+      }
+      
+      // Generic rule for any other subcollections
+      match /{document=**} {
+        allow read, write: if isAuthenticated() && 
+          exists(/databases/$(database)/documents/lists/$(listId)) &&
+          isParticipant(get(/databases/$(database)/documents/lists/$(listId)).data);
+      }
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
