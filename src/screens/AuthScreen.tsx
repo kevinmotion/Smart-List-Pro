@@ -34,7 +34,7 @@ export const AuthScreen = () => {
       if (err.code === 'auth/popup-closed-by-user') {
         setError('La ventana de inicio de sesión se cerró antes de completar el proceso.');
       } else if (err.code === 'auth/unauthorized-domain') {
-        setError('Este dominio no está autorizado para el inicio de sesión con Google. Por favor, añade los dominios de la aplicación a la lista de dominios autorizados en la consola de Firebase (Authentication > Settings > Authorized domains).');
+        setError(`Este dominio (${window.location.hostname}) no está autorizado para el inicio de sesión con Google. Por favor, añade este dominio a la lista de dominios autorizados en la consola de Firebase (Authentication > Settings > Authorized domains). AuthDomain configurado: ${auth.app.options.authDomain}`);
       } else {
         setError('Error al iniciar sesión con Google. Inténtalo de nuevo.');
       }
