@@ -13,7 +13,6 @@ import { GroupsScreen } from './screens/GroupsScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { LobbyScreen } from './screens/LobbyScreen';
 import { GlobalSettingsScreen } from './screens/GlobalSettingsScreen';
-import { GlobalCatalogScreen } from './screens/GlobalCatalogScreen';
 import { AuthScreen } from './screens/AuthScreen';
 import { ChevronLeft, ShoppingCart, Home, PartyPopper, Plane, Gift, Utensils, Backpack, Car, Dog, Baby, Briefcase, GraduationCap, Heart, Dumbbell, Music, Camera, Gamepad2, Coffee, Pizza, IceCream, Sun, Moon, Cloud, TreeDeciduous, Mountain, Waves, Palette, Brush, Pen, Book, Users, User, Calendar, Package, Wallet, CreditCard, Smartphone, Laptop, Zap, Droplets, Flame, Hammer, Wrench, Shield, Key, Lock, Wallet2, ChevronDown, Check } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -195,9 +194,6 @@ export default function App() {
           <div className="flex-1 relative overflow-hidden">
             <div className={globalTab === 'lists' ? 'block h-full' : 'hidden'}>
               <LobbyScreen />
-            </div>
-            <div className={globalTab === 'catalog' ? 'block h-full' : 'hidden'}>
-              <GlobalCatalogScreen />
             </div>
             <div className={globalTab === 'settings' ? 'block h-full' : 'hidden'}>
               <GlobalSettingsScreen />
