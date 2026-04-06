@@ -26,11 +26,13 @@ export const LobbyScreen = () => {
   const [newListCurrency, setNewListCurrency] = useState('S/');
   const [newListPaymentMode, setNewListPaymentMode] = useState<'detailed' | 'centralized'>('detailed');
   const [listToDelete, setListToDelete] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleCreateList = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentUser || !newListName.trim()) return;
+    if (!currentUser || !newListName.trim() || isSubmitting) return;
 
+    setIsSubmitting(true);
     try {
       const newList = {
         name: newListName.trim(),
@@ -50,13 +52,23 @@ export const LobbyScreen = () => {
         updatedAt: serverTimestamp(),
       };
 
-      await addDoc(collection(db, 'lists'), newList);
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error("the client is offline")), 8000)
+      );
+
+      await Promise.race([
+        addDoc(collection(db, 'lists'), newList),
+        timeoutPromise
+      ]);
+      
       setIsWizardOpen(false);
       setNewListName('');
       setNewListType('solo');
       setNewListFeatures({ planning: true, shopping: true, packing: false });
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'lists');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -398,10 +410,17 @@ export const LobbyScreen = () => {
                 </button>
                 <button
                   type="submit"
-                  disabled={!newListName.trim()}
-                  className="flex-1 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl transition-colors disabled:opacity-50"
+                  disabled={!newListName.trim() || isSubmitting}
+                  className="flex-1 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  Crear Lista
+                  {isSubmitting ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span>Creando...</span>
+                    </>
+                  ) : (
+                    'Crear Lista'
+                  )}
                 </button>
               </div>
             </form>
