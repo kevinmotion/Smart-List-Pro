@@ -73,6 +73,7 @@ export interface TemplateItem {
 
 export interface ListTemplate { 
   id: string; 
+  ownerId?: string;
   name: string; 
   emoji: string; 
   color: string; 
@@ -483,13 +484,40 @@ export const useStore = create<AppState>()(
         }
         set({ catalogItems: state.catalogItems.filter(i => i.id !== id) });
       },
-      addTemplate: (template) => set((state) => ({ templates: [...state.templates, template] })),
-      updateTemplate: (id, updates) => set((state) => ({
-        templates: state.templates.map(t => t.id === id ? { ...t, ...updates } : t)
-      })),
-      deleteTemplate: (id) => set((state) => ({
-        templates: state.templates.filter(t => t.id !== id)
-      })),
+      addTemplate: (template) => {
+        const state = get();
+        if (state.currentUser) {
+          const templateRef = doc(db, 'templates', template.id);
+          setDoc(templateRef, { ...template, ownerId: state.currentUser.uid }).catch((error) => {
+            handleFirestoreError(error, OperationType.WRITE, `templates/${template.id}`);
+          });
+        }
+        set((state) => ({ templates: [...state.templates, { ...template, ownerId: state?.currentUser?.uid }] }));
+      },
+      updateTemplate: (id, updates) => {
+        const state = get();
+        if (state.currentUser) {
+          const templateRef = doc(db, 'templates', id);
+          setDoc(templateRef, updates, { merge: true }).catch((error) => {
+            handleFirestoreError(error, OperationType.WRITE, `templates/${id}`);
+          });
+        }
+        set((state) => ({
+          templates: state.templates.map(t => t.id === id ? { ...t, ...updates } : t)
+        }));
+      },
+      deleteTemplate: (id) => {
+        const state = get();
+        if (state.currentUser) {
+          const templateRef = doc(db, 'templates', id);
+          deleteDoc(templateRef).catch((error) => {
+            handleFirestoreError(error, OperationType.DELETE, `templates/${id}`);
+          });
+        }
+        set((state) => ({
+          templates: state.templates.filter(t => t.id !== id)
+        }));
+      },
       setActiveGroup: (id) => set({ activeGroupId: id }),
       setTheme: (theme) => set({ theme }),
       setViewMode: (viewMode) => set({ viewMode }),

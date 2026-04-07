@@ -76,9 +76,38 @@ export default function App() {
       handleFirestoreError(error, OperationType.GET, 'master_catalog');
     });
 
+    // Listen to templates
+    const qTemplates = query(
+      collection(db, 'templates'),
+      where('ownerId', '==', currentUser.uid)
+    );
+
+    const unsubscribeTemplates = onSnapshot(qTemplates, (snapshot) => {
+      const fetchedTemplates: any[] = [];
+      snapshot.forEach((doc) => {
+        fetchedTemplates.push({ id: doc.id, ...doc.data() });
+      });
+
+      // Migrate local templates to Firestore
+      const localTemplates = useStore.getState().templates;
+      localTemplates.forEach(localTemplate => {
+        if (!fetchedTemplates.find(ft => ft.id === localTemplate.id)) {
+          const templateRef = doc(db, 'templates', localTemplate.id);
+          const templateToSave = { ...localTemplate, ownerId: currentUser.uid };
+          setDoc(templateRef, templateToSave).catch(console.error);
+          fetchedTemplates.push(templateToSave);
+        }
+      });
+
+      useStore.setState({ templates: fetchedTemplates });
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'templates');
+    });
+
     return () => {
       unsubscribeLists();
       unsubscribeCatalog();
+      unsubscribeTemplates();
     };
   }, [currentUser]);
 
