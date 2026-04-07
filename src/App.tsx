@@ -14,6 +14,7 @@ import { SettingsScreen } from './screens/SettingsScreen';
 import { LobbyScreen } from './screens/LobbyScreen';
 import { GlobalSettingsScreen } from './screens/GlobalSettingsScreen';
 import { GlobalCatalogScreen } from './screens/GlobalCatalogScreen';
+import { TemplateDetailScreen } from './screens/TemplateDetailScreen';
 import { AuthScreen } from './screens/AuthScreen';
 import { ChevronLeft, ShoppingCart, Home, PartyPopper, Plane, Gift, Utensils, Backpack, Car, Dog, Baby, Briefcase, GraduationCap, Heart, Dumbbell, Music, Camera, Gamepad2, Coffee, Pizza, IceCream, Sun, Moon, Cloud, TreeDeciduous, Mountain, Waves, Palette, Brush, Pen, Book, Users, User, Calendar, Package, Wallet, CreditCard, Smartphone, Laptop, Zap, Droplets, Flame, Hammer, Wrench, Shield, Key, Lock, Wallet2, ChevronDown, Check } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -30,7 +31,7 @@ import { collection, onSnapshot, query, orderBy, where, doc, setDoc, serverTimes
 export default function App() {
   const [currentTab, setCurrentTab] = useState('home');
   const [globalTab, setGlobalTab] = useState('lists');
-  const { theme, isInLobby, setIsInLobby, currentUser, setCurrentUser, setActiveListId, activeListId, setItems, lists, groups, activeGroupId, setActiveGroup } = useStore();
+  const { theme, isInLobby, setIsInLobby, currentUser, setCurrentUser, setActiveListId, activeListId, activeTemplateId, setItems, lists, groups, activeGroupId, setActiveGroup } = useStore();
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [showGroupDropdown, setShowGroupDropdown] = useState(false);
 
@@ -193,6 +194,16 @@ export default function App() {
   }
 
   if (isInLobby) {
+    if (activeTemplateId) {
+      return (
+        <div className="h-screen w-full bg-notion-bg dark:bg-notion-dark-bg text-notion-text dark:text-notion-dark-text overflow-hidden font-sans">
+          <main className="h-full w-full max-w-md mx-auto bg-notion-bg dark:bg-notion-dark-bg shadow-xl relative flex flex-col">
+            <TemplateDetailScreen />
+          </main>
+        </div>
+      );
+    }
+
     return (
       <div className="h-screen w-full bg-notion-bg dark:bg-notion-dark-bg text-notion-text dark:text-notion-dark-text overflow-hidden font-sans">
         <main className="h-full w-full max-w-md mx-auto bg-notion-bg dark:bg-notion-dark-bg shadow-xl relative flex flex-col">

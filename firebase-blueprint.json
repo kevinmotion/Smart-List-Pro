@@ -34,6 +34,8 @@
         },
         "currency": { "type": "string" },
         "paymentMode": { "type": "string", "enum": ["detailed", "centralized"] },
+        "templateId": { "type": "string" },
+        "items": { "type": "array", "items": { "type": "object" } },
         "createdAt": { "type": "number" },
         "updatedAt": { "type": "number" }
       },

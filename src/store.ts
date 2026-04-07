@@ -54,11 +54,38 @@ export type SmartList = {
   groups?: Group[];
   tags?: Tag[];
   locations?: Location[];
+  templateId?: string;
   createdAt?: any;
   updatedAt?: any;
 };
 
 export type Location = { id: string; name: string; order?: number };
+
+export interface TemplateItem { 
+  id: string; 
+  name: string; 
+  emoji: string; 
+  details: string; 
+  categoryId: string; 
+  presentation: number; 
+  unit: string; 
+}
+
+export interface ListTemplate { 
+  id: string; 
+  name: string; 
+  emoji: string; 
+  color: string; 
+  type: 'solo' | 'shared'; 
+  modules: { planning: boolean; shopping: boolean; packing: boolean; }; 
+  currency: string; 
+  categories: { id: string; name: string; color?: string; emoji?: string; }[]; 
+  locations: { id: string; name: string; color?: string; }[]; 
+  people: { id: string; name: string; avatar?: string; }[]; 
+  groups: { id: string; name: string; color: string; organizerId?: string | null; }[]; 
+  items: TemplateItem[]; 
+  createdAt: number; 
+}
 
 export type CatalogItem = {
   id: string;
@@ -101,7 +128,9 @@ export type Item = {
 
 interface AppState {
   lists: SmartList[];
+  templates: ListTemplate[];
   activeListId: string | null;
+  activeTemplateId: string | null;
   people: Person[];
   groups: Group[];
   tags: Tag[];
@@ -119,6 +148,7 @@ interface AppState {
   // Actions
   setLists: (lists: SmartList[]) => void;
   setActiveListId: (id: string | null) => void;
+  setActiveTemplateId: (id: string | null) => void;
   addPerson: (name: string) => void;
   updatePerson: (id: string, person: Partial<Person>) => void;
   removePerson: (id: string) => void;
@@ -146,6 +176,9 @@ interface AppState {
   addCatalogItem: (item: Omit<CatalogItem, 'id'>) => void;
   updateCatalogItem: (id: string, item: Partial<CatalogItem>) => void;
   removeCatalogItem: (id: string) => void;
+  addTemplate: (template: ListTemplate) => void;
+  updateTemplate: (id: string, updates: Partial<ListTemplate>) => void;
+  deleteTemplate: (id: string) => void;
   setActiveGroup: (id: string | null) => void;
   setTheme: (theme: 'light' | 'dark' | 'system') => void;
   setViewMode: (mode: 'compact' | 'spacious') => void;
@@ -178,7 +211,9 @@ export const useStore = create<AppState>()(
   persist(
     (set, get) => ({
       lists: [],
+      templates: [],
       activeListId: null,
+      activeTemplateId: null,
       people: [],
       groups: [],
       tags: [],
@@ -195,6 +230,7 @@ export const useStore = create<AppState>()(
 
       setLists: (lists) => set({ lists }),
       setActiveListId: (id) => set({ activeListId: id, isInLobby: id === null }),
+      setActiveTemplateId: (id) => set({ activeTemplateId: id }),
 
       addPerson: (name) => {
         set((state) => ({ people: [...state.people, { id: uuidv4(), name, order: state.people.length }] }));
@@ -447,6 +483,13 @@ export const useStore = create<AppState>()(
         }
         set({ catalogItems: state.catalogItems.filter(i => i.id !== id) });
       },
+      addTemplate: (template) => set((state) => ({ templates: [...state.templates, template] })),
+      updateTemplate: (id, updates) => set((state) => ({
+        templates: state.templates.map(t => t.id === id ? { ...t, ...updates } : t)
+      })),
+      deleteTemplate: (id) => set((state) => ({
+        templates: state.templates.filter(t => t.id !== id)
+      })),
       setActiveGroup: (id) => set({ activeGroupId: id }),
       setTheme: (theme) => set({ theme }),
       setViewMode: (viewMode) => set({ viewMode }),

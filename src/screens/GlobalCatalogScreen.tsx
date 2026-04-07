@@ -1,73 +1,96 @@
-import React, { useState, useEffect } from 'react';
-import { useStore } from '../store';
-import { Plus, Search, Edit2, Trash2, X, Info } from 'lucide-react';
+import React, { useState } from 'react';
+import { useStore, ListTemplate } from '../store';
+import { Plus, Search, Edit2, Trash2, X, Users, User, Calendar, ShoppingCart, Package, Check, Home, PartyPopper, Plane, Gift, Utensils, Backpack, Car, Dog, Baby, Briefcase, GraduationCap, Heart, Dumbbell, Music, Camera, Gamepad2, Coffee, Pizza, IceCream, Sun, Moon, Cloud, TreeDeciduous, Mountain, Waves, Palette, Brush, Pen, Book, Wallet, CreditCard, Smartphone, Laptop, Zap, Droplets, Flame, Hammer, Wrench, Shield, Key, Lock } from 'lucide-react';
 import { clsx } from 'clsx';
-import EmojiPicker from 'emoji-picker-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { LIST_COLORS, LIST_ICONS } from '../constants';
+import { v4 as uuidv4 } from 'uuid';
+
+const IconMap: Record<string, any> = {
+  ShoppingCart, Home, PartyPopper, Plane, Gift, Utensils, Backpack, Car, Dog, Baby, Briefcase, GraduationCap, Heart, Dumbbell, Music, Camera, Gamepad2, Coffee, Pizza, IceCream, Sun, Moon, Cloud, TreeDeciduous, Mountain, Waves, Palette, Brush, Pen, Book, Users, User, Calendar, Package, Wallet, CreditCard, Smartphone, Laptop, Zap, Droplets, Flame, Hammer, Wrench, Shield, Key, Lock
+};
 
 export function GlobalCatalogScreen() {
-  const { catalogItems, addCatalogItem, updateCatalogItem, removeCatalogItem, theme, currentUser } = useStore();
+  const { templates, addTemplate, updateTemplate, deleteTemplate, setActiveTemplateId } = useStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [isAdding, setIsAdding] = useState(false);
-  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
 
   // Form states
   const [name, setName] = useState('');
-  const [emoji, setEmoji] = useState('');
-  const [presentation, setPresentation] = useState('');
-  const [unitType, setUnitType] = useState('un');
-  const [defaultCategory, setDefaultCategory] = useState('');
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [emoji, setEmoji] = useState('ShoppingCart');
+  const [color, setColor] = useState('var(--color-text-blue)');
+  const [type, setType] = useState<'solo' | 'shared'>('solo');
+  const [currency, setCurrency] = useState('S/');
+  const [modules, setModules] = useState({
+    planning: true,
+    shopping: true,
+    packing: false,
+  });
 
-  const filteredItems = catalogItems.filter(item => 
-    item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.defaultCategory.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredTemplates = templates.filter(template => 
+    template.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const resetForm = () => {
     setName('');
-    setEmoji('');
-    setPresentation('');
-    setUnitType('un');
-    setDefaultCategory('');
+    setEmoji('ShoppingCart');
+    setColor('var(--color-text-blue)');
+    setType('solo');
+    setCurrency('S/');
+    setModules({ planning: true, shopping: true, packing: false });
     setIsAdding(false);
-    setEditingItemId(null);
-    setShowEmojiPicker(false);
+    setEditingTemplateId(null);
   };
 
-  const handleSave = () => {
-    if (!name.trim() || !currentUser) return;
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return;
 
-    const itemData = {
-      name: name.trim(),
-      emoji: emoji || '🛒',
-      presentation,
-      unitType,
-      defaultCategory: defaultCategory.trim(),
-      ownerId: currentUser.uid,
-    };
-
-    if (editingItemId) {
-      updateCatalogItem(editingItemId, itemData);
+    if (editingTemplateId) {
+      updateTemplate(editingTemplateId, {
+        name: name.trim(),
+        emoji: emoji || 'ShoppingCart',
+        color,
+        type,
+        currency,
+        modules,
+      });
     } else {
-      addCatalogItem(itemData);
+      addTemplate({
+        id: uuidv4(),
+        name: name.trim(),
+        emoji: emoji || 'ShoppingCart',
+        color,
+        type,
+        currency,
+        modules,
+        categories: [],
+        locations: [],
+        people: [],
+        groups: [],
+        items: [],
+        createdAt: Date.now(),
+      });
     }
     resetForm();
   };
 
-  const handleEdit = (item: any) => {
-    setName(item.name);
-    setEmoji(item.emoji === '🛒' ? '' : item.emoji);
-    setPresentation(item.presentation || '');
-    setUnitType(item.unitType || 'un');
-    setDefaultCategory(item.defaultCategory || '');
-    setEditingItemId(item.id);
+  const handleEdit = (template: ListTemplate) => {
+    setName(template.name);
+    setEmoji(template.emoji);
+    setColor(template.color);
+    setType(template.type);
+    setCurrency(template.currency);
+    setModules(template.modules);
+    setEditingTemplateId(template.id);
     setIsAdding(true);
   };
 
   return (
     <div className="h-full flex flex-col bg-notion-bg dark:bg-notion-dark-bg">
       <div className="px-5 pt-6 pb-4 shrink-0">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">Catálogo Maestro</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">Plantillas de Listas</h1>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
           <input
@@ -81,7 +104,7 @@ export function GlobalCatalogScreen() {
       </div>
 
       <div className="flex-1 overflow-y-auto px-5 pb-24">
-        {filteredItems.length === 0 ? (
+        {filteredTemplates.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center text-gray-500 dark:text-gray-400">
             <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-2xl flex items-center justify-center mb-4">
               <Search size={24} className="text-gray-400" />
@@ -91,27 +114,33 @@ export function GlobalCatalogScreen() {
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-3">
-            {filteredItems.map(item => (
-              <div key={item.id} className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col relative group">
+            {filteredTemplates.map(template => (
+              <div 
+                key={template.id} 
+                onClick={() => setActiveTemplateId(template.id)}
+                className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col relative group cursor-pointer hover:shadow-md transition-shadow"
+              >
                 <div className="flex justify-between items-start mb-2">
-                  <span className="text-2xl">{item.emoji}</span>
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${template.color}20`, color: template.color }}>
+                    {IconMap[template.emoji] ? React.createElement(IconMap[template.emoji], { size: 20 }) : <ShoppingCart size={20} />}
+                  </div>
                   <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => handleEdit(item)} className="p-1.5 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <button onClick={(e) => { e.stopPropagation(); handleEdit(template); }} className="p-1.5 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 bg-gray-50 dark:bg-gray-700 rounded-lg">
                       <Edit2 size={14} />
                     </button>
-                    <button onClick={() => removeCatalogItem(item.id)} className="p-1.5 text-gray-400 hover:text-red-600 dark:hover:text-red-400 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <button onClick={(e) => { e.stopPropagation(); deleteTemplate(template.id); }} className="p-1.5 text-gray-400 hover:text-red-600 dark:hover:text-red-400 bg-gray-50 dark:bg-gray-700 rounded-lg">
                       <Trash2 size={14} />
                     </button>
                   </div>
                 </div>
-                <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm mb-1 line-clamp-2">{item.name}</h3>
+                <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm mb-1 line-clamp-2" style={{ color: template.color }}>{template.name}</h3>
                 <div className="mt-auto flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                  {item.presentation && <span>{item.presentation} {item.unitType}</span>}
-                  {item.defaultCategory && (
-                    <span className="bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-md truncate">
-                      {item.defaultCategory}
-                    </span>
-                  )}
+                  <span className="flex items-center gap-1">
+                    {template.type === 'shared' ? <Users size={12} /> : <User size={12} />}
+                    {template.type === 'shared' ? 'Compartida' : 'Solo'}
+                  </span>
+                  <span>•</span>
+                  <span>{template.items?.length || 0} items</span>
                 </div>
               </div>
             ))}
@@ -127,129 +156,219 @@ export function GlobalCatalogScreen() {
       </button>
 
       {/* Add/Edit Modal */}
-      {isAdding && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center pt-0 sm:pt-10">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={resetForm} />
-          <div className={clsx(
-            "relative w-full max-w-md bg-white dark:bg-notion-dark-bg shadow-2xl flex flex-col overflow-hidden",
-            "h-auto max-h-[90vh] rounded-b-3xl sm:rounded-3xl",
-            "animate-in slide-in-from-top-full duration-300"
-          )}>
-            <button
-              onClick={resetForm}
-              className="absolute top-4 right-4 p-1.5 bg-gray-100 dark:bg-gray-800 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-full transition-colors z-10"
+      <AnimatePresence>
+        {isAdding && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0, y: 50 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 50 }}
+              className="bg-white dark:bg-notion-dark-bg w-full max-w-md rounded-3xl p-6 shadow-2xl max-h-[85vh] overflow-y-auto relative"
             >
-              <X size={16} />
-            </button>
+              <button
+                onClick={resetForm}
+                className="absolute top-4 right-4 p-1.5 bg-gray-100 dark:bg-gray-800 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-full transition-colors z-10"
+              >
+                <X size={16} />
+              </button>
 
-            <div className="overflow-y-auto p-5 space-y-5 pt-10">
-              {/* Row 1: Concept */}
-              <div className="flex gap-3 items-end relative">
-                <div className="flex-1">
-                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                    Concepto
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">
+                {editingTemplateId ? 'Editar Plantilla' : 'Nueva Plantilla'}
+              </h2>
+              
+              <form onSubmit={handleSave} className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                    ¿Cómo será esta plantilla?
                   </label>
-                  <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl h-12 px-2">
+                  <div className="grid grid-cols-2 gap-3">
                     <button
-                      onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                      className="w-8 h-8 flex items-center justify-center text-xl hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                      type="button"
+                      onClick={() => setType('solo')}
+                      className={clsx(
+                        "p-4 rounded-2xl border-2 text-left transition-all",
+                        type === 'solo'
+                          ? "border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20"
+                          : "border-gray-200 dark:border-gray-700 hover:border-indigo-300"
+                      )}
                     >
-                      {emoji || <span className="opacity-50 grayscale">🛒</span>}
+                      <User size={24} className={clsx("mb-2", type === 'solo' ? "text-indigo-600" : "text-gray-400")} />
+                      <h3 className={clsx("font-semibold", type === 'solo' ? "text-indigo-900 dark:text-indigo-100" : "text-gray-700 dark:text-gray-300")}>Solo</h3>
+                      <p className="text-xs text-gray-500 mt-1">Personal, sin deudas ni divisiones.</p>
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => setType('shared')}
+                      className={clsx(
+                        "p-4 rounded-2xl border-2 text-left transition-all",
+                        type === 'shared'
+                          ? "border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20"
+                          : "border-gray-200 dark:border-gray-700 hover:border-indigo-300"
+                      )}
+                    >
+                      <Users size={24} className={clsx("mb-2", type === 'shared' ? "text-indigo-600" : "text-gray-400")} />
+                      <h3 className={clsx("font-semibold", type === 'shared' ? "text-indigo-900 dark:text-indigo-100" : "text-gray-700 dark:text-gray-300")}>Compartida</h3>
+                      <p className="text-xs text-gray-500 mt-1">Grupo o pareja, divide gastos.</p>
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                    Identidad de la plantilla
+                  </label>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-6 gap-2 mb-4 max-h-40 overflow-y-auto p-2 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-700">
+                      {LIST_ICONS.map(icon => (
+                        <button
+                          key={icon.id}
+                          type="button"
+                          onClick={() => setEmoji(icon.id)}
+                          className={clsx(
+                            "aspect-square flex items-center justify-center rounded-lg transition-all",
+                            emoji === icon.id ? "bg-indigo-600 text-white shadow-md scale-110" : "bg-white dark:bg-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                          )}
+                        >
+                          {IconMap[icon.id] ? React.createElement(IconMap[icon.id], { size: 20 }) : <ShoppingCart size={20} />}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 mb-4 justify-center">
+                      {LIST_COLORS.map(c => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => setColor(c.textVar)}
+                          style={{ backgroundColor: c.textVar }}
+                          className={clsx(
+                            "w-6 h-6 rounded-full transition-all flex items-center justify-center shadow-sm border border-black/5 dark:border-white/5",
+                            color === c.textVar ? "ring-2 ring-offset-2 ring-indigo-500 dark:ring-offset-gray-900 scale-110" : "hover:scale-110"
+                          )}
+                        >
+                          {color === c.textVar && <Check size={12} className="text-white" />}
+                        </button>
+                      ))}
+                    </div>
+
                     <input
-                      autoFocus
                       required
                       type="text"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      className="flex-1 w-full bg-transparent border-none text-sm font-semibold placeholder-gray-400 focus:outline-none focus:ring-0"
-                      placeholder="Ej. Cerveza Pilsen"
+                      className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl h-12 px-4 text-sm font-semibold placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                      placeholder="Ej. Viaje a la playa"
                     />
                   </div>
                 </div>
-              </div>
 
-              {showEmojiPicker && (
-                <div className="absolute z-50 mt-2">
-                  <div className="fixed inset-0" onClick={() => setShowEmojiPicker(false)} />
-                  <div className="relative shadow-xl rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
-                    <EmojiPicker
-                      onEmojiClick={(e) => {
-                        setEmoji(e.emoji);
-                        setShowEmojiPicker(false);
-                      }}
-                      theme={theme === 'dark' ? 'dark' : 'light'}
-                      width={300}
-                      height={400}
-                    />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                    ¿Qué herramientas necesitas?
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setModules({ ...modules, planning: !modules.planning })}
+                      className={clsx(
+                        "p-3 rounded-xl border-2 text-center transition-all flex flex-col items-center justify-center gap-2",
+                        modules.planning
+                          ? "border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20"
+                          : "border-gray-200 dark:border-gray-700 hover:border-indigo-300"
+                      )}
+                    >
+                      <Calendar size={20} className={modules.planning ? "text-indigo-600" : "text-gray-400"} />
+                      <div>
+                        <h3 className={clsx("font-semibold text-xs", modules.planning ? "text-indigo-900 dark:text-indigo-100" : "text-gray-700 dark:text-gray-300")}>Planear</h3>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setModules({ ...modules, shopping: !modules.shopping })}
+                      className={clsx(
+                        "p-3 rounded-xl border-2 text-center transition-all flex flex-col items-center justify-center gap-2",
+                        modules.shopping
+                          ? "border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20"
+                          : "border-gray-200 dark:border-gray-700 hover:border-indigo-300"
+                      )}
+                    >
+                      <ShoppingCart size={20} className={modules.shopping ? "text-indigo-600" : "text-gray-400"} />
+                      <div>
+                        <h3 className={clsx("font-semibold text-xs", modules.shopping ? "text-indigo-900 dark:text-indigo-100" : "text-gray-700 dark:text-gray-300")}>Comprar</h3>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setModules({ ...modules, packing: !modules.packing })}
+                      className={clsx(
+                        "p-3 rounded-xl border-2 text-center transition-all flex flex-col items-center justify-center gap-2",
+                        modules.packing
+                          ? "border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20"
+                          : "border-gray-200 dark:border-gray-700 hover:border-indigo-300"
+                      )}
+                    >
+                      <Package size={20} className={modules.packing ? "text-indigo-600" : "text-gray-400"} />
+                      <div>
+                        <h3 className={clsx("font-semibold text-xs", modules.packing ? "text-indigo-900 dark:text-indigo-100" : "text-gray-700 dark:text-gray-300")}>Empacar</h3>
+                      </div>
+                    </button>
                   </div>
                 </div>
-              )}
 
-              {/* Row 2: Category */}
-              <div>
-                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                  Categoría Sugerida
-                </label>
-                <input
-                  type="text"
-                  value={defaultCategory}
-                  onChange={(e) => setDefaultCategory(e.target.value)}
-                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl h-12 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                  placeholder="Ej. Bebidas"
-                />
-              </div>
-
-              {/* Row 3: Presentation & Unit */}
-              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                    Presentación
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                    Configuración Base
                   </label>
-                  <input
-                    type="number"
-                    value={presentation}
-                    onChange={(e) => setPresentation(e.target.value)}
-                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl h-12 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                    placeholder="Ej. 355"
-                  />
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Moneda Principal</label>
+                      <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">
+                        <button
+                          type="button"
+                          onClick={() => setCurrency('S/')}
+                          className={clsx(
+                            "flex-1 py-2 text-sm font-medium rounded-lg transition-all",
+                            currency === 'S/' ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm" : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                          )}
+                        >
+                          Soles (S/)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCurrency('$')}
+                          className={clsx(
+                            "flex-1 py-2 text-sm font-medium rounded-lg transition-all",
+                            currency === '$' ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm" : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                          )}
+                        >
+                          Dólares ($)
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
-                    Unidad
-                  </label>
-                  <select
-                    value={unitType}
-                    onChange={(e) => setUnitType(e.target.value)}
-                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl h-12 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 appearance-none"
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={resetForm}
+                    className="flex-1 px-4 py-3 text-gray-600 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors"
                   >
-                    <option value="un">Unidades (un)</option>
-                    <option value="kg">Kilogramos (kg)</option>
-                    <option value="gr">Gramos (gr)</option>
-                    <option value="lt">Litros (lt)</option>
-                    <option value="ml">Mililitros (ml)</option>
-                    <option value="pq">Paquetes (pq)</option>
-                    <option value="cj">Cajas (cj)</option>
-                    <option value="bl">Bolsas (bl)</option>
-                    <option value="lt">Latas (lt)</option>
-                    <option value="bt">Botellas (bt)</option>
-                  </select>
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!name.trim()}
+                    className="flex-1 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl transition-colors disabled:opacity-50"
+                  >
+                    {editingTemplateId ? 'Guardar Cambios' : 'Crear Plantilla'}
+                  </button>
                 </div>
-              </div>
-            </div>
-
-            <div className="p-5 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 mt-auto">
-              <button
-                onClick={handleSave}
-                disabled={!name.trim()}
-                className="w-full py-3.5 bg-indigo-600 text-white rounded-xl font-bold shadow-md shadow-indigo-600/20 hover:bg-indigo-700 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {editingItemId ? 'Guardar Cambios' : 'Crear Plantilla'}
-              </button>
-            </div>
+              </form>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
     </div>
   );
 }

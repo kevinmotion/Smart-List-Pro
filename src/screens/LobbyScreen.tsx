@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useStore, SmartList } from '../store';
-import { ChevronRight, ListTodo, Plus, Users, User, Calendar, ShoppingCart, Package, Trash2, LogOut, Settings, Check, Home, PartyPopper, Plane, Gift, Utensils, Backpack, Car, Dog, Baby, Briefcase, GraduationCap, Heart, Dumbbell, Music, Camera, Gamepad2, Coffee, Pizza, IceCream, Sun, Moon, Cloud, TreeDeciduous, Mountain, Waves, Palette, Brush, Pen, Book, Wallet, CreditCard, Smartphone, Laptop, Zap, Droplets, Flame, Hammer, Wrench, Shield, Key, Lock } from 'lucide-react';
+import { ChevronRight, ListTodo, Plus, Users, User, Calendar, ShoppingCart, Package, Trash2, LogOut, Settings, Check, Home, PartyPopper, Plane, Gift, Utensils, Backpack, Car, Dog, Baby, Briefcase, GraduationCap, Heart, Dumbbell, Music, Camera, Gamepad2, Coffee, Pizza, IceCream, Sun, Moon, Cloud, TreeDeciduous, Mountain, Waves, Palette, Brush, Pen, Book, Wallet, CreditCard, Smartphone, Laptop, Zap, Droplets, Flame, Hammer, Wrench, Shield, Key, Lock, FilePlus, Copy, X } from 'lucide-react';
 import { db, handleFirestoreError, OperationType } from '../firebase';
-import { collection, query, where, onSnapshot, addDoc, serverTimestamp, deleteDoc, doc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, addDoc, serverTimestamp, deleteDoc, doc, writeBatch } from 'firebase/firestore';
 import { clsx } from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
 import { NOTION_COLORS, LIST_ICONS, LIST_COLORS } from '../constants';
@@ -11,9 +11,147 @@ const IconMap: Record<string, any> = {
   ShoppingCart, Home, PartyPopper, Plane, Gift, Utensils, Backpack, Car, Dog, Baby, Briefcase, GraduationCap, Heart, Dumbbell, Music, Camera, Gamepad2, Coffee, Pizza, IceCream, Sun, Moon, Cloud, TreeDeciduous, Mountain, Waves, Palette, Brush, Pen, Book, Users, User, Calendar, Package, Wallet, CreditCard, Smartphone, Laptop, Zap, Droplets, Flame, Hammer, Wrench, Shield, Key, Lock
 };
 
+const TemplateImportModal = ({
+  isOpen,
+  onClose,
+  template,
+  onSubmit,
+  isSubmitting,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  template: any;
+  onSubmit: (name: string, selectedItemIds: Set<string>) => void;
+  isSubmitting: boolean;
+}) => {
+  const [listName, setListName] = useState('');
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (isOpen && template) {
+      const dateStr = new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: 'short' }).format(new Date());
+      setListName(`${template.name} - ${dateStr}`);
+      setSelectedItems(new Set((template.items || []).map((item: any) => item.id)));
+    }
+  }, [isOpen, template]);
+
+  if (!isOpen || !template) return null;
+
+  const itemsByCategory = (template.items || []).reduce((acc: any, item: any) => {
+    if (!acc[item.categoryId]) acc[item.categoryId] = [];
+    acc[item.categoryId].push(item);
+    return acc;
+  }, {} as Record<string, any[]>);
+
+  const handleToggleItem = (itemId: string) => {
+    const newSelected = new Set(selectedItems);
+    if (newSelected.has(itemId)) {
+      newSelected.delete(itemId);
+    } else {
+      newSelected.add(itemId);
+    }
+    setSelectedItems(newSelected);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4">
+      <motion.div 
+        initial={{ opacity: 0, y: 50 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 50 }}
+        className="bg-white dark:bg-notion-dark-bg w-full max-w-md rounded-3xl p-6 shadow-2xl max-h-[85vh] flex flex-col relative"
+      >
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 p-1.5 bg-gray-100 dark:bg-gray-800 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-full transition-colors z-10"
+        >
+          <X size={16} />
+        </button>
+
+        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-6 shrink-0">Importar Plantilla</h2>
+        
+        <div className="overflow-y-auto flex-1 pr-2 space-y-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Nombre de la nueva lista
+            </label>
+            <input
+              type="text"
+              value={listName}
+              onChange={(e) => setListName(e.target.value)}
+              className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl h-14 px-4 text-lg font-semibold placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:text-gray-100"
+              placeholder="Ej. Compras de la semana"
+              required
+            />
+          </div>
+
+          <div>
+            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+              Selecciona los items a importar
+            </h3>
+            <div className="space-y-4">
+              {Object.entries(itemsByCategory).map(([categoryId, items]) => {
+                const category = (template.categories || []).find((c: any) => c.id === categoryId);
+                return (
+                  <div key={categoryId} className="space-y-2">
+                    <h4 className="text-sm font-semibold text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                      {category?.emoji} {category?.name || 'Sin categoría'}
+                    </h4>
+                    <div className="space-y-1">
+                      {(items as any[]).map(item => (
+                        <label key={item.id} className="flex items-center gap-3 p-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg cursor-pointer transition-colors">
+                          <input
+                            type="checkbox"
+                            checked={selectedItems.has(item.id)}
+                            onChange={() => handleToggleItem(item.id)}
+                            className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+                          />
+                          <span className="text-gray-900 dark:text-gray-100">
+                            {item.emoji && <span className="mr-2">{item.emoji}</span>}
+                            {item.name}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        <div className="pt-6 shrink-0 mt-auto flex gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 px-4 py-3 text-gray-600 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors"
+          >
+            Atrás
+          </button>
+          <button
+            onClick={() => onSubmit(listName, selectedItems)}
+            disabled={isSubmitting || !listName.trim()}
+            className="flex-1 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {isSubmitting ? (
+              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              'Crear Lista'
+            )}
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
 export const LobbyScreen = () => {
-  const { setIsInLobby, currentUser, lists, setLists, setActiveListId } = useStore();
+  const { setIsInLobby, currentUser, lists, setLists, setActiveListId, templates } = useStore();
+  const [isActionSheetOpen, setIsActionSheetOpen] = useState(false);
   const [isWizardOpen, setIsWizardOpen] = useState(false);
+  const [isTemplateSelectOpen, setIsTemplateSelectOpen] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  const [newTemplateListName, setNewTemplateListName] = useState('');
   const [newListType, setNewListType] = useState<'solo' | 'shared'>('solo');
   const [newListName, setNewListName] = useState('');
   const [newListEmoji, setNewListEmoji] = useState('ShoppingCart');
@@ -65,6 +203,86 @@ export const LobbyScreen = () => {
       setNewListName('');
       setNewListType('solo');
       setNewListFeatures({ planning: true, shopping: true, packing: false });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'lists');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleCreateFromTemplate = async (listName: string, selectedItemIds: Set<string>) => {
+    if (!currentUser || !listName.trim() || !selectedTemplateId || isSubmitting) return;
+
+    const template = templates.find(t => t.id === selectedTemplateId);
+    if (!template) return;
+
+    setIsSubmitting(true);
+    try {
+      const newList = {
+        name: listName.trim(),
+        emoji: template.emoji,
+        color: template.color,
+        type: template.type,
+        participants: [currentUser.uid],
+        features: template.modules,
+        currency: template.currency,
+        exchangeRate: 3.80,
+        paymentMode: 'detailed',
+        people: [...(template.people || [])],
+        groups: [...(template.groups || [])],
+        tags: [...(template.categories || []).map(c => ({ id: c.id, name: c.name, emoji: c.emoji || '🏷️' }))],
+        locations: [...(template.locations || [])],
+        templateId: template.id,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
+
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error("the client is offline")), 8000)
+      );
+
+      const createListPromise = async () => {
+        const docRef = await addDoc(collection(db, 'lists'), newList);
+        
+        const itemsToImport = (template.items || []).filter(item => selectedItemIds.has(item.id));
+        if (itemsToImport.length > 0) {
+          const batch = writeBatch(db);
+          itemsToImport.forEach((item, index) => {
+            const newItemRef = doc(collection(db, `lists/${docRef.id}/items`));
+            batch.set(newItemRef, {
+              id: newItemRef.id,
+              name: item.name,
+              emoji: item.emoji || null,
+              tagId: item.categoryId || null,
+              groupId: template.groups?.[0]?.id || '',
+              quantity: 1,
+              price: 0,
+              presentation: item.presentation || 1,
+              unit: item.unit || 'un',
+              details: item.details || '',
+              locationId: null,
+              paidById: null,
+              packedById: null,
+              isBought: false,
+              isPacked: false,
+              alternatives: [],
+              order: index,
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp()
+            });
+          });
+          await batch.commit();
+        }
+      };
+
+      await Promise.race([
+        createListPromise(),
+        timeoutPromise
+      ]);
+      
+      setIsTemplateSelectOpen(false);
+      setNewTemplateListName('');
+      setSelectedTemplateId(null);
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'lists');
     } finally {
@@ -179,11 +397,132 @@ export const LobbyScreen = () => {
 
       {/* FAB */}
       <button
-        onClick={() => setIsWizardOpen(true)}
+        onClick={() => setIsActionSheetOpen(true)}
         className="absolute bottom-24 right-6 w-14 h-14 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center z-40"
       >
         <Plus size={28} />
       </button>
+
+      {/* Action Sheet */}
+      <AnimatePresence>
+        {isActionSheetOpen && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center sm:items-center p-4">
+            <motion.div
+              initial={{ opacity: 0, y: 100 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 100 }}
+              className="bg-white dark:bg-notion-dark-bg w-full max-w-md rounded-3xl p-6 shadow-2xl relative"
+            >
+              <button
+                onClick={() => setIsActionSheetOpen(false)}
+                className="absolute top-4 right-4 p-1.5 bg-gray-100 dark:bg-gray-800 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-full transition-colors z-10"
+              >
+                <X size={16} />
+              </button>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-6">
+                ¿Cómo quieres crear tu lista?
+              </h2>
+              <div className="space-y-3">
+                <button
+                  onClick={() => {
+                    setIsActionSheetOpen(false);
+                    setIsWizardOpen(true);
+                  }}
+                  className="w-full flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-2xl transition-colors text-left"
+                >
+                  <div className="w-12 h-12 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
+                    <FilePlus size={24} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900 dark:text-gray-100">Desde cero</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Crea una lista en blanco y configúrala a tu gusto.</p>
+                  </div>
+                </button>
+                
+                {templates.length > 0 && (
+                  <button
+                    onClick={() => {
+                      setIsActionSheetOpen(false);
+                      setIsTemplateSelectOpen(true);
+                    }}
+                    className="w-full flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-2xl transition-colors text-left"
+                  >
+                    <div className="w-12 h-12 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+                      <Copy size={24} />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-gray-900 dark:text-gray-100">Desde una plantilla</h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Usa una plantilla existente con categorías y ubicaciones predefinidas.</p>
+                    </div>
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Template Selection Modal */}
+      <AnimatePresence>
+        {isTemplateSelectOpen && !selectedTemplateId && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0, y: 50 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 50 }}
+              className="bg-white dark:bg-notion-dark-bg w-full max-w-md rounded-3xl p-6 shadow-2xl max-h-[85vh] overflow-y-auto relative"
+            >
+              <button
+                onClick={() => {
+                  setIsTemplateSelectOpen(false);
+                  setSelectedTemplateId(null);
+                  setNewTemplateListName('');
+                }}
+                className="absolute top-4 right-4 p-1.5 bg-gray-100 dark:bg-gray-800 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-full transition-colors z-10"
+              >
+                <X size={16} />
+              </button>
+
+              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-6">Selecciona una plantilla</h2>
+              
+              <div className="space-y-3">
+                {templates.map(template => (
+                  <button
+                    key={template.id}
+                    onClick={() => {
+                      setSelectedTemplateId(template.id);
+                    }}
+                    className="w-full flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-2xl transition-colors text-left"
+                  >
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center shadow-inner shrink-0" style={{ backgroundColor: template.color }}>
+                      <span className="text-2xl">{template.emoji}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-gray-900 dark:text-gray-100 truncate">{template.name}</h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
+                        {template.items?.length || 0} productos • {template.categories?.length || 0} categorías
+                      </p>
+                    </div>
+                    <ChevronRight size={20} className="text-gray-400" />
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {selectedTemplateId && (
+          <TemplateImportModal
+            isOpen={!!selectedTemplateId}
+            onClose={() => setSelectedTemplateId(null)}
+            template={templates.find(t => t.id === selectedTemplateId)}
+            onSubmit={handleCreateFromTemplate}
+            isSubmitting={isSubmitting}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Wizard Modal */}
       <AnimatePresence>

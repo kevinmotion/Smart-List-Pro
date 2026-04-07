@@ -21,6 +21,7 @@ service cloud.firestore {
     //   - groups: list of objects (optional)
     //   - tags: list of objects (optional)
     //   - locations: list of objects (optional)
+    //   - templateId: string (optional)
     //   - createdAt: timestamp (required)
     //   - updatedAt: timestamp (required)
     //
@@ -110,18 +111,29 @@ service cloud.firestore {
     }
 
     function isValidList() {
-      return hasRequiredFields(['name', 'type', 'participants', 'createdAt', 'updatedAt']) &&
-             hasOnlyAllowedFields(['name', 'emoji', 'color', 'type', 'participants', 'features', 'currency', 'exchangeRate', 'paymentMode', 'people', 'groups', 'tags', 'locations', 'createdAt', 'updatedAt']) &&
+      return hasRequiredFields(['name', 'type', 'participants', 'createdAt', 'updatedAt', 'features', 'exchangeRate', 'paymentMode']) &&
              isValidString('name', 1, 100) &&
              isValidString('type', 1, 20) &&
              isValidListField('participants', 100) &&
              isValidOptionalString('emoji', 1, 50) &&
              isValidOptionalString('color', 1, 50) &&
              isValidOptionalString('currency', 1, 10) &&
+             isValidOptionalString('templateId', 0, 100) &&
              isValidListField('people', 100) &&
              isValidListField('groups', 100) &&
              isValidListField('tags', 100) &&
-             isValidListField('locations', 100);
+             isValidListField('locations', 100) &&
+             isValidFeatures(request.resource.data.features) &&
+             request.resource.data.exchangeRate is number &&
+             request.resource.data.paymentMode in ['detailed', 'centralized'];
+    }
+
+    function isValidFeatures(features) {
+      return features is map &&
+             features.keys().hasAll(['planning', 'shopping', 'packing']) &&
+             features.planning is bool &&
+             features.shopping is bool &&
+             features.packing is bool;
     }
 
     function isValidItem() {
