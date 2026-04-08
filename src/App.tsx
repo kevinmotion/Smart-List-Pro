@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { useStore } from './store';
+import { useStore, removeUndefined } from './store';
 import { BottomNav } from './components/BottomNav';
 import { GlobalBottomNav } from './components/GlobalBottomNav';
 import { HomeScreen } from './screens/HomeScreen';
@@ -94,7 +94,7 @@ export default function App() {
         if (!fetchedTemplates.find(ft => ft.id === localTemplate.id)) {
           const templateRef = doc(db, 'templates', localTemplate.id);
           const templateToSave = { ...localTemplate, ownerId: currentUser.uid };
-          setDoc(templateRef, templateToSave).catch(console.error);
+          setDoc(templateRef, removeUndefined(templateToSave)).catch(console.error);
           fetchedTemplates.push(templateToSave);
         }
       });
@@ -164,17 +164,17 @@ export default function App() {
           const userDoc = await getDoc(userDocRef);
           
           if (!userDoc.exists()) {
-            await setDoc(userDocRef, {
+            await setDoc(userDocRef, removeUndefined({
               ...userData,
               role: 'user', // Default role
               createdAt: serverTimestamp(),
               updatedAt: serverTimestamp(),
-            });
+            }));
           } else {
-            await setDoc(userDocRef, {
+            await setDoc(userDocRef, removeUndefined({
               ...userData,
               updatedAt: serverTimestamp(),
-            }, { merge: true });
+            }), { merge: true });
           }
         } catch (error: any) {
           if (error?.message?.includes('client is offline')) {

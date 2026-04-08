@@ -195,14 +195,27 @@ interface AppState {
   logout: () => void;
 }
 
+export const removeUndefined = (obj: any): any => {
+  if (Array.isArray(obj)) {
+    return obj.map(removeUndefined);
+  } else if (obj !== null && typeof obj === 'object') {
+    return Object.fromEntries(
+      Object.entries(obj)
+        .filter(([_, v]) => v !== undefined)
+        .map(([k, v]) => [k, removeUndefined(v)])
+    );
+  }
+  return obj;
+};
+
 const syncListToFirestore = (state: AppState) => {
   if (state.activeListId && state.currentUser) {
     const listRef = doc(db, 'lists', state.activeListId);
     setDoc(listRef, {
-      people: state.people,
-      groups: state.groups,
-      tags: state.tags,
-      locations: state.locations,
+      people: removeUndefined(state.people),
+      groups: removeUndefined(state.groups),
+      tags: removeUndefined(state.tags),
+      locations: removeUndefined(state.locations),
       updatedAt: serverTimestamp()
     }, { merge: true }).catch((error) => {
       handleFirestoreError(error, OperationType.WRITE, `lists/${state.activeListId}`);
@@ -370,11 +383,11 @@ export const useStore = create<AppState>()(
         
         if (state.activeListId && state.currentUser) {
           const itemRef = doc(db, 'lists', state.activeListId, 'items', id);
-          setDoc(itemRef, {
+          setDoc(itemRef, removeUndefined({
             ...newItem,
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp()
-          }).catch((error) => {
+          })).catch((error) => {
             handleFirestoreError(error, OperationType.WRITE, `lists/${state.activeListId}/items/${id}`);
           });
         }
@@ -387,11 +400,11 @@ export const useStore = create<AppState>()(
         
         if (state.activeListId && state.currentUser) {
           const itemRef = doc(db, 'lists', state.activeListId, 'items', id);
-          setDoc(itemRef, { 
+          setDoc(itemRef, removeUndefined({ 
             ...state.items.find(i => i.id === id), 
             ...item,
             updatedAt: serverTimestamp()
-          }, { merge: true }).catch((error) => {
+          }), { merge: true }).catch((error) => {
             handleFirestoreError(error, OperationType.WRITE, `lists/${state.activeListId}/items/${id}`);
           });
         }
@@ -456,7 +469,7 @@ export const useStore = create<AppState>()(
         
         if (state.currentUser) {
           const itemRef = doc(db, 'master_catalog', id);
-          setDoc(itemRef, newItem).catch((error) => {
+          setDoc(itemRef, removeUndefined(newItem)).catch((error) => {
             handleFirestoreError(error, OperationType.WRITE, `master_catalog/${id}`);
           });
         }
@@ -469,7 +482,7 @@ export const useStore = create<AppState>()(
         
         if (state.currentUser) {
           const itemRef = doc(db, 'master_catalog', id);
-          setDoc(itemRef, { ...state.catalogItems.find(i => i.id === id), ...item }, { merge: true }).catch((error) => {
+          setDoc(itemRef, removeUndefined({ ...state.catalogItems.find(i => i.id === id), ...item }), { merge: true }).catch((error) => {
             handleFirestoreError(error, OperationType.WRITE, `master_catalog/${id}`);
           });
         }
@@ -490,7 +503,7 @@ export const useStore = create<AppState>()(
         const state = get();
         if (state.currentUser) {
           const templateRef = doc(db, 'templates', template.id);
-          setDoc(templateRef, { ...template, ownerId: state.currentUser.uid }).catch((error) => {
+          setDoc(templateRef, removeUndefined({ ...template, ownerId: state.currentUser.uid })).catch((error) => {
             handleFirestoreError(error, OperationType.WRITE, `templates/${template.id}`);
           });
         }
@@ -500,7 +513,7 @@ export const useStore = create<AppState>()(
         const state = get();
         if (state.currentUser) {
           const templateRef = doc(db, 'templates', id);
-          setDoc(templateRef, updates, { merge: true }).catch((error) => {
+          setDoc(templateRef, removeUndefined(updates), { merge: true }).catch((error) => {
             handleFirestoreError(error, OperationType.WRITE, `templates/${id}`);
           });
         }

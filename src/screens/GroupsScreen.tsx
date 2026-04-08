@@ -55,6 +55,10 @@ export const GroupsScreen = () => {
   const [editingLocationId, setEditingLocationId] = useState<string | null>(null);
   const [editingLocationName, setEditingLocationName] = useState('');
 
+  // Tag states
+  const [newTagEmoji, setNewTagEmoji] = useState('');
+  const [newTagName, setNewTagName] = useState('');
+
   // Tag Modal states
   const [isTagModalOpen, setIsTagModalOpen] = useState(false);
   const [editingTagId, setEditingTagId] = useState<string | null>(null);
@@ -131,6 +135,15 @@ export const GroupsScreen = () => {
       : [...group.peopleIds, personId];
 
     updateGroup(groupId, { peopleIds: newPeopleIds });
+  };
+
+  const handleInlineAddTag = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTagName.trim()) return;
+    addTag(newTagName.trim(), newTagEmoji.trim() || '🛒');
+    setNewTagName('');
+    setNewTagEmoji('');
+    setExpandedSection('tags');
   };
 
   const openTagModal = (tag?: Tag) => {
@@ -612,13 +625,32 @@ export const GroupsScreen = () => {
                 className="overflow-hidden bg-gray-50/50 dark:bg-gray-900/20"
               >
                 <div className="p-5 pt-0 space-y-4">
-                  <button
-                    onClick={() => openTagModal()}
-                    className="w-full flex items-center justify-center gap-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 dark:bg-indigo-900/20 dark:hover:bg-indigo-900/40 dark:text-indigo-400 py-3 rounded-xl font-medium transition-colors border border-indigo-100 dark:border-indigo-900/50 shadow-sm"
-                  >
-                    <Plus size={18} />
-                    Añadir Categoría
-                  </button>
+                  <form onSubmit={handleInlineAddTag} className="flex gap-2 items-center">
+                    <div className="w-12 shrink-0">
+                      <input
+                        type="text"
+                        value={newTagEmoji}
+                        onChange={e => setNewTagEmoji(e.target.value)}
+                        placeholder="🛒"
+                        maxLength={2}
+                        className="w-full bg-white dark:bg-notion-dark-gray-bg border border-gray-200 dark:border-gray-700 rounded-xl px-2 py-2 text-center text-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+                      />
+                    </div>
+                    <input
+                      type="text"
+                      value={newTagName}
+                      onChange={e => setNewTagName(e.target.value)}
+                      placeholder="Nueva categoría..."
+                      className="flex-1 bg-white dark:bg-notion-dark-gray-bg border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm shadow-sm"
+                    />
+                    <button 
+                      type="submit" 
+                      disabled={!newTagName.trim()}
+                      className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white p-2 rounded-xl transition-colors shadow-sm"
+                    >
+                      <Plus size={20} />
+                    </button>
+                  </form>
 
                   <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEndTags}>
                     <SortableContext items={tags.map(t => t.id)} strategy={verticalListSortingStrategy}>

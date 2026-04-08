@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useStore, SmartList } from '../store';
+import { useStore, SmartList, removeUndefined } from '../store';
 import { ChevronRight, ListTodo, Plus, Users, User, Pencil, ShoppingCart, Luggage, Trash2, LogOut, Settings, Check, Home, PartyPopper, Plane, Gift, Utensils, Backpack, Car, Dog, Baby, Briefcase, GraduationCap, Heart, Dumbbell, Music, Camera, Gamepad2, Coffee, Pizza, IceCream, Sun, Moon, Cloud, TreeDeciduous, Mountain, Waves, Palette, Brush, Pen, Book, Wallet, CreditCard, Smartphone, Laptop, Zap, Droplets, Flame, Hammer, Wrench, Shield, Key, Lock, FilePlus, Copy, X, Pipette, ChevronDown, CheckCircle2, Circle, Calendar, Package } from 'lucide-react';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { collection, query, where, onSnapshot, addDoc, serverTimestamp, deleteDoc, doc, writeBatch } from 'firebase/firestore';
@@ -363,7 +363,7 @@ export const LobbyScreen = () => {
       );
 
       await Promise.race([
-        addDoc(collection(db, 'lists'), newList),
+        addDoc(collection(db, 'lists'), removeUndefined(newList)),
         timeoutPromise
       ]);
       
@@ -397,10 +397,10 @@ export const LobbyScreen = () => {
         currency: template.currency,
         exchangeRate: 3.80,
         paymentMode: 'detailed',
-        people: [...(template.people || [])],
-        groups: [...(template.groups || [])],
-        tags: [...(template.categories || []).map(c => ({ id: c.id, name: c.name, emoji: c.emoji || '🏷️' }))],
-        locations: [...(template.locations || [])],
+        people: (template.people || []).map(p => ({ id: p.id, name: p.name, ...(p.avatar ? { avatar: p.avatar } : {}) })),
+        groups: (template.groups || []).map(g => ({ id: g.id, name: g.name, color: g.color, ...(g.organizerId ? { organizerId: g.organizerId } : {}) })),
+        tags: (template.categories || []).map(c => ({ id: c.id, name: c.name, emoji: c.emoji || '🏷️', ...(c.color ? { color: c.color } : {}) })),
+        locations: (template.locations || []).map(l => ({ id: l.id, name: l.name, ...(l.color ? { color: l.color } : {}) })),
         templateId: template.id,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -411,14 +411,14 @@ export const LobbyScreen = () => {
       );
 
       const createListPromise = async () => {
-        const docRef = await addDoc(collection(db, 'lists'), newList);
+        const docRef = await addDoc(collection(db, 'lists'), removeUndefined(newList));
         
         const itemsToImport = (template.items || []).filter(item => selectedItemIds.has(item.id));
         if (itemsToImport.length > 0) {
           const batch = writeBatch(db);
           itemsToImport.forEach((item, index) => {
             const newItemRef = doc(collection(db, `lists/${docRef.id}/items`));
-            batch.set(newItemRef, {
+            batch.set(newItemRef, removeUndefined({
               id: newItemRef.id,
               name: item.name,
               emoji: item.emoji || null,
@@ -438,7 +438,7 @@ export const LobbyScreen = () => {
               order: index,
               createdAt: serverTimestamp(),
               updatedAt: serverTimestamp()
-            });
+            }));
           });
           await batch.commit();
         }
