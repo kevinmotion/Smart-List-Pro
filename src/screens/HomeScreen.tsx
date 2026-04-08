@@ -6,6 +6,7 @@ import { GroupedItemList } from "../components/GroupedItemList";
 import { compressImage } from "../utils/image";
 import { getInSoles, getNormalizedPrice, getBaseUnit } from "../utils/currency";
 import { v4 as uuidv4 } from "uuid";
+import { motion, AnimatePresence } from "motion/react";
 import {
   Plus,
   Image as ImageIcon,
@@ -26,6 +27,7 @@ import {
   Package,
   Download,
   Wallet,
+  Wallet2,
   MapPin,
 } from "lucide-react";
 import { clsx } from "clsx";
@@ -44,7 +46,9 @@ export const HomeScreen = () => {
     removeItem,
     addPerson,
     addGroup,
+    updateGroup,
     addTag,
+    addLocation,
     exchangeRate,
     lists,
     activeListId,
@@ -81,6 +85,7 @@ export const HomeScreen = () => {
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [showAddPerson, setShowAddPerson] = useState(false);
   const [showAddGroup, setShowAddGroup] = useState(false);
+  const [showAddLocation, setShowAddLocation] = useState(false);
 
   // Category State
   const [newCategoryName, setNewCategoryName] = useState("");
@@ -89,10 +94,14 @@ export const HomeScreen = () => {
   // Person State
   const [newPersonName, setNewPersonName] = useState("");
 
+  // Location State
+  const [newLocationName, setNewLocationName] = useState("");
+
   // Group State
   const [newGroupName, setNewGroupName] = useState("");
   const [newGroupColor, setNewGroupColor] = useState("");
   const [newGroupPeople, setNewGroupPeople] = useState<string[]>([]);
+  const [newGroupOrganizerId, setNewGroupOrganizerId] = useState<string>("");
   const [showColorPicker, setShowColorPicker] = useState(false);
 
   // Alternative flow states
@@ -700,96 +709,88 @@ export const HomeScreen = () => {
       )}
 
       {/* FAB Container */}
-      <div className="fixed bottom-20 right-4 w-14 h-14 z-30">
-        {/* Categoría (Top) */}
-        <div
-          className={clsx(
-            "absolute top-0 left-0 w-full h-full flex items-center justify-center transition-all duration-300 ease-out",
-            showFabMenu
-              ? "-translate-y-[90px] opacity-100"
-              : "translate-y-0 opacity-0 pointer-events-none",
-          )}
-        >
-          <div className="relative flex flex-col items-center">
-            <button
-              onClick={() => {
-                setShowFabMenu(false);
-                setShowAddCategory(true);
+      <div className="fixed bottom-20 right-4 flex flex-col items-end z-30">
+        {/* Menu Items Stack */}
+        <AnimatePresence>
+          {showFabMenu && (
+            <motion.div
+              initial="hidden"
+              animate="visible"
+              exit="hidden"
+              variants={{
+                visible: {
+                  transition: {
+                    staggerChildren: 0.05,
+                    staggerDirection: -1,
+                  },
+                },
+                hidden: {
+                  transition: {
+                    staggerChildren: 0.05,
+                    staggerDirection: 1,
+                  },
+                },
               }}
-              className="w-12 h-12 bg-white dark:bg-notion-dark-gray-bg text-indigo-600 dark:text-indigo-400 rounded-full shadow-lg flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              className="flex flex-col items-end gap-2 mb-4"
             >
-              <TagIcon size={20} />
-            </button>
-          </div>
-        </div>
-
-        {/* Persona (Diagonal) */}
-        <div
-          className={clsx(
-            "absolute top-0 left-0 w-full h-full flex items-center justify-center transition-all duration-300 ease-out delay-75",
-            showFabMenu
-              ? "-translate-x-[64px] -translate-y-[64px] opacity-100"
-              : "translate-x-0 translate-y-0 opacity-0 pointer-events-none",
+              {[
+                {
+                  id: 'persona',
+                  label: 'Persona',
+                  icon: <UserPlus size={18} />,
+                  onClick: () => setShowAddPerson(true),
+                  show: !isSolo
+                },
+                {
+                  id: 'grupo',
+                  label: 'Grupo de pago',
+                  icon: <Wallet2 size={18} />,
+                  onClick: () => setShowAddGroup(true),
+                  show: !isSolo
+                },
+                {
+                  id: 'categoria',
+                  label: 'Categoría',
+                  icon: <TagIcon size={18} />,
+                  onClick: () => setShowAddCategory(true),
+                  show: true
+                },
+                {
+                  id: 'local',
+                  label: 'Local de compra',
+                  icon: <MapPin size={18} />,
+                  onClick: () => setShowAddLocation(true),
+                  show: true
+                },
+                {
+                  id: 'exportar',
+                  label: 'Exportar',
+                  icon: <Download size={18} />,
+                  onClick: handleExport,
+                  show: true
+                }
+              ].filter(item => item.show).map((item) => (
+                <motion.button
+                  key={item.id}
+                  variants={{
+                    visible: { opacity: 1, x: 0, scale: 1 },
+                    hidden: { opacity: 0, x: 20, scale: 0.8 }
+                  }}
+                  onClick={() => {
+                    setShowFabMenu(false);
+                    item.onClick();
+                  }}
+                  className="flex items-center gap-2.5 bg-white/70 dark:bg-notion-dark-gray-bg/70 border border-gray-200/50 dark:border-gray-700/50 px-3.5 py-1.5 rounded-full hover:bg-white/90 dark:hover:bg-notion-dark-gray-bg/90 transition-colors group backdrop-blur-md shadow-sm"
+                >
+                  <span className="text-[13px] font-semibold text-gray-700 dark:text-gray-200">{item.label}</span>
+                  <div className="w-8 h-8 flex items-center justify-center text-gray-500 dark:text-gray-400">
+                    {item.icon}
+                  </div>
+                </motion.button>
+              ))}
+            </motion.div>
           )}
-        >
-          <div className="relative flex flex-col items-center">
-            <button
-              onClick={() => {
-                setShowFabMenu(false);
-                setShowAddPerson(true);
-              }}
-              className="w-12 h-12 bg-white dark:bg-notion-dark-gray-bg text-indigo-600 dark:text-indigo-400 rounded-full shadow-lg flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-            >
-              <UserPlus size={20} />
-            </button>
-          </div>
-        </div>
-
-        {/* Grupo de pago (Left) */}
-        {!isSolo && (
-          <div
-            className={clsx(
-              "absolute top-0 left-0 w-full h-full flex items-center justify-center transition-all duration-300 ease-out delay-150",
-              showFabMenu
-                ? "-translate-x-[90px] opacity-100"
-                : "translate-x-0 opacity-0 pointer-events-none",
-            )}
-          >
-            <div className="relative flex flex-col items-center">
-              <button
-                onClick={() => {
-                  setShowFabMenu(false);
-                  setShowAddGroup(true);
-                }}
-                className="w-12 h-12 bg-white dark:bg-notion-dark-gray-bg text-indigo-600 dark:text-indigo-400 rounded-full shadow-lg flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-              >
-                <Users size={20} />
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Exportar (Bottom-Left) */}
-        <div
-          className={clsx(
-            "absolute top-0 left-0 w-full h-full flex items-center justify-center transition-all duration-300 ease-out delay-[225ms]",
-            showFabMenu
-              ? "-translate-x-[64px] translate-y-[64px] opacity-100"
-              : "translate-x-0 opacity-0 pointer-events-none",
-          )}
-        >
-          <div className="relative flex flex-col items-center">
-            <button
-              onClick={() => {
-                setShowFabMenu(false);
-                handleExport();
-              }}
-              className="w-12 h-12 bg-white dark:bg-notion-dark-gray-bg text-indigo-600 dark:text-indigo-400 rounded-full shadow-lg flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-            >
-              <Download size={20} />
-            </button>
-          </div>
-        </div>
+        </AnimatePresence>
 
         {/* Main FAB */}
         <button
@@ -797,7 +798,7 @@ export const HomeScreen = () => {
           onPointerUp={handleFabPointerUp}
           onPointerLeave={handleFabPointerLeave}
           className={clsx(
-            "absolute inset-0 w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all z-30",
+            "w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all z-30",
             showFabMenu
               ? "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rotate-45"
               : "bg-cyan-600 hover:bg-cyan-700 text-white active:scale-95",
@@ -806,6 +807,46 @@ export const HomeScreen = () => {
           <Plus size={24} />
         </button>
       </div>
+
+      {/* Add Location Modal */}
+      {showAddLocation && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-notion-dark-bg w-full max-w-sm rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95">
+            <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-800">
+              <h3 className="text-lg font-semibold">Nuevo Local</h3>
+              <button
+                onClick={() => setShowAddLocation(false)}
+                className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-4 space-y-4">
+              <input
+                autoFocus
+                type="text"
+                value={newLocationName}
+                onChange={(e) => setNewLocationName(e.target.value)}
+                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                placeholder="Nombre del local (ej. Plaza Vea)"
+              />
+              <button
+                onClick={() => {
+                  if (newLocationName.trim()) {
+                    addLocation(newLocationName.trim());
+                    setNewLocationName("");
+                    setShowAddLocation(false);
+                  }
+                }}
+                disabled={!newLocationName.trim()}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl px-4 py-3 transition-colors disabled:opacity-50"
+              >
+                Añadir Local
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add Category Modal */}
       {showAddCategory && (
@@ -968,7 +1009,7 @@ export const HomeScreen = () => {
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Integrantes
                 </label>
-                <div className="space-y-2 max-h-40 overflow-y-auto">
+                <div className="space-y-2 max-h-40 overflow-y-auto mb-4">
                   {people.length === 0 ? (
                     <p className="text-sm text-gray-500">
                       No hay personas registradas.
@@ -989,15 +1030,47 @@ export const HomeScreen = () => {
                               setNewGroupPeople(
                                 newGroupPeople.filter((id) => id !== person.id),
                               );
+                              if (newGroupOrganizerId === person.id) {
+                                setNewGroupOrganizerId("");
+                              }
                             }
                           }}
                           className="w-5 h-5 rounded border-gray-300 text-cyan-600 focus:ring-cyan-500"
                         />
-                        <span>{person.name}</span>
+                        <span className="flex-1">{person.name}</span>
                       </label>
                     ))
                   )}
                 </div>
+
+                {newGroupPeople.length > 0 && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Organizador del Grupo
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {newGroupPeople.map(pid => {
+                        const p = people.find(person => person.id === pid);
+                        if (!p) return null;
+                        return (
+                          <button
+                            key={pid}
+                            type="button"
+                            onClick={() => setNewGroupOrganizerId(pid)}
+                            className={clsx(
+                              "px-3 py-1.5 rounded-full text-xs font-medium transition-all border",
+                              newGroupOrganizerId === pid
+                                ? "bg-indigo-600 border-indigo-600 text-white shadow-sm"
+                                : "bg-gray-50 border-gray-200 text-gray-600 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400 hover:border-indigo-400"
+                            )}
+                          >
+                            {p.name.split(' ')[0]}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <button
@@ -1024,10 +1097,13 @@ export const HomeScreen = () => {
                           ].bgVar;
                       }
                     }
-                    addGroup(newGroupName.trim(), colorToUse, newGroupPeople);
+                    
+                    addGroup(newGroupName.trim(), colorToUse, newGroupPeople, newGroupOrganizerId);
+                    
                     setNewGroupName("");
                     setNewGroupColor("");
                     setNewGroupPeople([]);
+                    setNewGroupOrganizerId("");
                     setShowColorPicker(false);
                     setShowAddGroup(false);
                   }

@@ -154,7 +154,7 @@ interface AppState {
   updatePerson: (id: string, person: Partial<Person>) => void;
   removePerson: (id: string) => void;
   reorderPeople: (people: Person[]) => void;
-  addGroup: (name: string, color: string, peopleIds: string[]) => void;
+  addGroup: (name: string, color: string, peopleIds: string[], organizerId?: string) => void;
   updateGroup: (id: string, group: Partial<Group>) => void;
   removeGroup: (id: string) => void;
   reorderGroups: (groups: Group[]) => void;
@@ -263,9 +263,9 @@ export const useStore = create<AppState>()(
         set({ people });
         syncListToFirestore(get());
       },
-      addGroup: (name, color, peopleIds) => {
+      addGroup: (name, color, peopleIds, organizerId) => {
         set((state) => {
-          const newGroup = { id: uuidv4(), name, color, peopleIds, order: state.groups.length };
+          const newGroup = { id: uuidv4(), name, color, peopleIds, organizerId, order: state.groups.length };
           return { 
             groups: [...state.groups, newGroup],
             activeGroupId: state.activeGroupId || newGroup.id
