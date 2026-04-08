@@ -1,19 +1,20 @@
 import React, { useState } from 'react';
 import { useStore, ListTemplate } from '../store';
-import { Plus, Search, Edit2, Trash2, X, Users, User, Calendar, ShoppingCart, Package, Check, Home, PartyPopper, Plane, Gift, Utensils, Backpack, Car, Dog, Baby, Briefcase, GraduationCap, Heart, Dumbbell, Music, Camera, Gamepad2, Coffee, Pizza, IceCream, Sun, Moon, Cloud, TreeDeciduous, Mountain, Waves, Palette, Brush, Pen, Book, Wallet, CreditCard, Smartphone, Laptop, Zap, Droplets, Flame, Hammer, Wrench, Shield, Key, Lock } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, X, Users, User, Pencil, ShoppingCart, Luggage, Check, Home, PartyPopper, Plane, Gift, Utensils, Backpack, Car, Dog, Baby, Briefcase, GraduationCap, Heart, Dumbbell, Music, Camera, Gamepad2, Coffee, Pizza, IceCream, Sun, Moon, Cloud, TreeDeciduous, Mountain, Waves, Palette, Brush, Pen, Book, Wallet, CreditCard, Smartphone, Laptop, Zap, Droplets, Flame, Hammer, Wrench, Shield, Key, Lock, Pipette, Calendar, Package } from 'lucide-react';
 import { clsx } from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LIST_COLORS, LIST_ICONS } from '../constants';
 import { v4 as uuidv4 } from 'uuid';
 
 const IconMap: Record<string, any> = {
-  ShoppingCart, Home, PartyPopper, Plane, Gift, Utensils, Backpack, Car, Dog, Baby, Briefcase, GraduationCap, Heart, Dumbbell, Music, Camera, Gamepad2, Coffee, Pizza, IceCream, Sun, Moon, Cloud, TreeDeciduous, Mountain, Waves, Palette, Brush, Pen, Book, Users, User, Calendar, Package, Wallet, CreditCard, Smartphone, Laptop, Zap, Droplets, Flame, Hammer, Wrench, Shield, Key, Lock
+  ShoppingCart, Home, PartyPopper, Plane, Gift, Utensils, Backpack, Car, Dog, Baby, Briefcase, GraduationCap, Heart, Dumbbell, Music, Camera, Gamepad2, Coffee, Pizza, IceCream, Sun, Moon, Cloud, TreeDeciduous, Mountain, Waves, Palette, Brush, Pen, Book, Users, User, Pencil, Luggage, Wallet, CreditCard, Smartphone, Laptop, Zap, Droplets, Flame, Hammer, Wrench, Shield, Key, Lock, Calendar, Package
 };
 
 export function GlobalCatalogScreen() {
   const { templates, addTemplate, updateTemplate, deleteTemplate, setActiveTemplateId } = useStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [isAdding, setIsAdding] = useState(false);
+  const [phase, setPhase] = useState<1 | 2>(1);
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
 
   // Form states
@@ -40,12 +41,18 @@ export function GlobalCatalogScreen() {
     setCurrency('S/');
     setModules({ planning: true, shopping: true, packing: false });
     setIsAdding(false);
+    setPhase(1);
     setEditingTemplateId(null);
   };
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
+
+    if (phase === 1) {
+      setPhase(2);
+      return;
+    }
 
     if (editingTemplateId) {
       updateTemplate(editingTemplateId, {
@@ -84,6 +91,7 @@ export function GlobalCatalogScreen() {
     setCurrency(template.currency);
     setModules(template.modules);
     setEditingTemplateId(template.id);
+    setPhase(1);
     setIsAdding(true);
   };
 
@@ -172,198 +180,271 @@ export function GlobalCatalogScreen() {
                 <X size={16} />
               </button>
 
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">
-                {editingTemplateId ? 'Editar Plantilla' : 'Nueva Plantilla'}
-              </h2>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                  {editingTemplateId ? 'Editar Plantilla' : 'Nueva Plantilla'}
+                </h2>
+                <div className="flex gap-1">
+                  <div className={clsx("w-2 h-2 rounded-full transition-colors", phase === 1 ? "bg-indigo-600" : "bg-gray-200 dark:bg-gray-700")} />
+                  <div className={clsx("w-2 h-2 rounded-full transition-colors", phase === 2 ? "bg-indigo-600" : "bg-gray-200 dark:bg-gray-700")} />
+                </div>
+              </div>
               
               <form onSubmit={handleSave} className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                    ¿Cómo será esta plantilla?
-                  </label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setType('solo')}
-                      className={clsx(
-                        "p-4 rounded-2xl border-2 text-left transition-all",
-                        type === 'solo'
-                          ? "border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20"
-                          : "border-gray-200 dark:border-gray-700 hover:border-indigo-300"
-                      )}
-                    >
-                      <User size={24} className={clsx("mb-2", type === 'solo' ? "text-indigo-600" : "text-gray-400")} />
-                      <h3 className={clsx("font-semibold", type === 'solo' ? "text-indigo-900 dark:text-indigo-100" : "text-gray-700 dark:text-gray-300")}>Solo</h3>
-                      <p className="text-xs text-gray-500 mt-1">Personal, sin deudas ni divisiones.</p>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setType('shared')}
-                      className={clsx(
-                        "p-4 rounded-2xl border-2 text-left transition-all",
-                        type === 'shared'
-                          ? "border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20"
-                          : "border-gray-200 dark:border-gray-700 hover:border-indigo-300"
-                      )}
-                    >
-                      <Users size={24} className={clsx("mb-2", type === 'shared' ? "text-indigo-600" : "text-gray-400")} />
-                      <h3 className={clsx("font-semibold", type === 'shared' ? "text-indigo-900 dark:text-indigo-100" : "text-gray-700 dark:text-gray-300")}>Compartida</h3>
-                      <p className="text-xs text-gray-500 mt-1">Grupo o pareja, divide gastos.</p>
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                    Identidad de la plantilla
-                  </label>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-6 gap-2 mb-4 max-h-40 overflow-y-auto p-2 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-700">
-                      {LIST_ICONS.map(icon => (
-                        <button
-                          key={icon.id}
-                          type="button"
-                          onClick={() => setEmoji(icon.id)}
-                          className={clsx(
-                            "aspect-square flex items-center justify-center rounded-lg transition-all",
-                            emoji === icon.id ? "bg-indigo-600 text-white shadow-md scale-110" : "bg-white dark:bg-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-                          )}
-                        >
-                          {IconMap[icon.id] ? React.createElement(IconMap[icon.id], { size: 20 }) : <ShoppingCart size={20} />}
-                        </button>
-                      ))}
-                    </div>
-
-                    <div className="flex flex-wrap gap-2 mb-4 justify-center">
-                      {LIST_COLORS.map(c => (
-                        <button
-                          key={c.id}
-                          type="button"
-                          onClick={() => setColor(c.textVar)}
-                          style={{ backgroundColor: c.textVar }}
-                          className={clsx(
-                            "w-6 h-6 rounded-full transition-all flex items-center justify-center shadow-sm border border-black/5 dark:border-white/5",
-                            color === c.textVar ? "ring-2 ring-offset-2 ring-indigo-500 dark:ring-offset-gray-900 scale-110" : "hover:scale-110"
-                          )}
-                        >
-                          {color === c.textVar && <Check size={12} className="text-white" />}
-                        </button>
-                      ))}
-                    </div>
-
-                    <input
-                      required
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl h-12 px-4 text-sm font-semibold placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                      placeholder="Ej. Viaje a la playa"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                    ¿Qué herramientas necesitas?
-                  </label>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setModules({ ...modules, planning: !modules.planning })}
-                      className={clsx(
-                        "p-3 rounded-xl border-2 text-center transition-all flex flex-col items-center justify-center gap-2",
-                        modules.planning
-                          ? "border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20"
-                          : "border-gray-200 dark:border-gray-700 hover:border-indigo-300"
-                      )}
-                    >
-                      <Calendar size={20} className={modules.planning ? "text-indigo-600" : "text-gray-400"} />
-                      <div>
-                        <h3 className={clsx("font-semibold text-xs", modules.planning ? "text-indigo-900 dark:text-indigo-100" : "text-gray-700 dark:text-gray-300")}>Planear</h3>
-                      </div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setModules({ ...modules, shopping: !modules.shopping })}
-                      className={clsx(
-                        "p-3 rounded-xl border-2 text-center transition-all flex flex-col items-center justify-center gap-2",
-                        modules.shopping
-                          ? "border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20"
-                          : "border-gray-200 dark:border-gray-700 hover:border-indigo-300"
-                      )}
-                    >
-                      <ShoppingCart size={20} className={modules.shopping ? "text-indigo-600" : "text-gray-400"} />
-                      <div>
-                        <h3 className={clsx("font-semibold text-xs", modules.shopping ? "text-indigo-900 dark:text-indigo-100" : "text-gray-700 dark:text-gray-300")}>Comprar</h3>
-                      </div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setModules({ ...modules, packing: !modules.packing })}
-                      className={clsx(
-                        "p-3 rounded-xl border-2 text-center transition-all flex flex-col items-center justify-center gap-2",
-                        modules.packing
-                          ? "border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20"
-                          : "border-gray-200 dark:border-gray-700 hover:border-indigo-300"
-                      )}
-                    >
-                      <Package size={20} className={modules.packing ? "text-indigo-600" : "text-gray-400"} />
-                      <div>
-                        <h3 className={clsx("font-semibold text-xs", modules.packing ? "text-indigo-900 dark:text-indigo-100" : "text-gray-700 dark:text-gray-300")}>Empacar</h3>
-                      </div>
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                    Configuración Base
-                  </label>
-                  <div className="space-y-3">
+                {phase === 1 ? (
+                  <div key="phase1" className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                     <div>
-                      <label className="block text-xs text-gray-500 mb-1">Moneda Principal</label>
-                      <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                        ¿Cómo será esta plantilla?
+                      </label>
+                      <div className="grid grid-cols-2 gap-3">
                         <button
                           type="button"
-                          onClick={() => setCurrency('S/')}
+                          onClick={() => setType('solo')}
                           className={clsx(
-                            "flex-1 py-2 text-sm font-medium rounded-lg transition-all",
-                            currency === 'S/' ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm" : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                            "p-4 rounded-2xl border-2 text-left transition-all",
+                            type === 'solo'
+                              ? "border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20"
+                              : "border-gray-200 dark:border-gray-700 hover:border-indigo-300"
                           )}
                         >
-                          Soles (S/)
+                          <User size={24} className={clsx("mb-2", type === 'solo' ? "text-indigo-600" : "text-gray-400")} />
+                          <h3 className={clsx("font-semibold", type === 'solo' ? "text-indigo-900 dark:text-indigo-100" : "text-gray-700 dark:text-gray-300")}>Solo</h3>
+                          <p className="text-xs text-gray-500 mt-1">Personal, sin deudas ni divisiones.</p>
                         </button>
                         <button
                           type="button"
-                          onClick={() => setCurrency('$')}
+                          onClick={() => setType('shared')}
                           className={clsx(
-                            "flex-1 py-2 text-sm font-medium rounded-lg transition-all",
-                            currency === '$' ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm" : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                            "p-4 rounded-2xl border-2 text-left transition-all",
+                            type === 'shared'
+                              ? "border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20"
+                              : "border-gray-200 dark:border-gray-700 hover:border-indigo-300"
                           )}
                         >
-                          Dólares ($)
+                          <Users size={24} className={clsx("mb-2", type === 'shared' ? "text-indigo-600" : "text-gray-400")} />
+                          <h3 className={clsx("font-semibold", type === 'shared' ? "text-indigo-900 dark:text-indigo-100" : "text-gray-700 dark:text-gray-300")}>Compartida</h3>
+                          <p className="text-xs text-gray-500 mt-1">Grupo o pareja, divide gastos.</p>
                         </button>
                       </div>
                     </div>
-                  </div>
-                </div>
 
-                <div className="flex gap-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={resetForm}
-                    className="flex-1 px-4 py-3 text-gray-600 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={!name.trim()}
-                    className="flex-1 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl transition-colors disabled:opacity-50"
-                  >
-                    {editingTemplateId ? 'Guardar Cambios' : 'Crear Plantilla'}
-                  </button>
-                </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                        Identidad de la plantilla
+                      </label>
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-3">
+                          <div className="relative group">
+                            <button
+                              type="button"
+                              className="w-12 h-12 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center text-gray-500 hover:text-indigo-600 transition-colors"
+                              onClick={(e) => {
+                                const picker = document.getElementById('template-icon-picker');
+                                if (picker) {
+                                  picker.style.display = picker.style.display === 'none' ? 'grid' : 'none';
+                                }
+                              }}
+                            >
+                              {IconMap[emoji] ? React.createElement(IconMap[emoji], { size: 24 }) : <ShoppingCart size={24} />}
+                            </button>
+                            <div 
+                              id="template-icon-picker"
+                              className="absolute bottom-full left-0 mb-2 w-64 grid grid-cols-5 gap-2 p-3 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 z-50 hidden max-h-48 overflow-y-auto"
+                            >
+                              {LIST_ICONS.map(icon => (
+                                <button
+                                  key={icon.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setEmoji(icon.id);
+                                    const picker = document.getElementById('template-icon-picker');
+                                    if (picker) picker.style.display = 'none';
+                                  }}
+                                  className={clsx(
+                                    "aspect-square flex items-center justify-center rounded-lg transition-all",
+                                    emoji === icon.id ? "bg-indigo-600 text-white shadow-md" : "bg-gray-50 dark:bg-gray-700 text-gray-400 hover:text-gray-600"
+                                  )}
+                                >
+                                  {IconMap[icon.id] ? React.createElement(IconMap[icon.id], { size: 18 }) : <ShoppingCart size={18} />}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          <input
+                            required
+                            type="text"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            className="flex-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl h-12 px-4 text-sm font-semibold placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                            placeholder="Nombre de la plantilla..."
+                          />
+
+                          <div className="relative">
+                            <button
+                              type="button"
+                              className="w-10 h-10 rounded-full border-2 border-white dark:border-gray-800 shadow-sm flex items-center justify-center transition-transform hover:scale-110"
+                              style={{ backgroundColor: color }}
+                              onClick={() => {
+                                const picker = document.getElementById('template-color-picker');
+                                if (picker) {
+                                  picker.style.display = picker.style.display === 'none' ? 'flex' : 'none';
+                                }
+                              }}
+                            >
+                              <Pipette size={14} className="text-white drop-shadow-sm" />
+                            </button>
+                            <div 
+                              id="template-color-picker"
+                              className="absolute bottom-full right-0 mb-2 p-3 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 z-50 hidden flex-wrap gap-2 w-48 justify-center"
+                            >
+                              {LIST_COLORS.map(c => (
+                                <button
+                                  key={c.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setColor(c.textVar);
+                                    const picker = document.getElementById('template-color-picker');
+                                    if (picker) picker.style.display = 'none';
+                                  }}
+                                  style={{ backgroundColor: c.textVar }}
+                                  className={clsx(
+                                    "w-6 h-6 rounded-full transition-all flex items-center justify-center shadow-sm border border-black/5",
+                                    color === c.textVar ? "ring-2 ring-offset-2 ring-indigo-500 scale-110" : "hover:scale-110"
+                                  )}
+                                >
+                                  {color === c.textVar && <Check size={12} className="text-white" />}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3 pt-4">
+                      <button
+                        type="button"
+                        onClick={resetForm}
+                        className="flex-1 px-4 py-3 text-gray-600 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={!name.trim()}
+                        className="flex-1 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl transition-colors disabled:opacity-50"
+                      >
+                        Siguiente
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div key="phase2" className="space-y-6 animate-in fade-in slide-in-from-left-4 duration-300">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                        ¿Qué herramientas necesitas?
+                      </label>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setModules({ ...modules, planning: !modules.planning })}
+                          className={clsx(
+                            "p-3 rounded-xl border-2 text-center transition-all flex flex-col items-center justify-center gap-2",
+                            modules.planning
+                              ? "border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20"
+                              : "border-gray-200 dark:border-gray-700 hover:border-indigo-300"
+                          )}
+                        >
+                          <Pencil size={20} className={modules.planning ? "text-indigo-600" : "text-gray-400"} />
+                          <div>
+                            <h3 className={clsx("font-semibold text-xs", modules.planning ? "text-indigo-900 dark:text-indigo-100" : "text-gray-700 dark:text-gray-300")}>Planear</h3>
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setModules({ ...modules, shopping: !modules.shopping })}
+                          className={clsx(
+                            "p-3 rounded-xl border-2 text-center transition-all flex flex-col items-center justify-center gap-2",
+                            modules.shopping
+                              ? "border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20"
+                              : "border-gray-200 dark:border-gray-700 hover:border-indigo-300"
+                          )}
+                        >
+                          <ShoppingCart size={20} className={modules.shopping ? "text-indigo-600" : "text-gray-400"} />
+                          <div>
+                            <h3 className={clsx("font-semibold text-xs", modules.shopping ? "text-indigo-900 dark:text-indigo-100" : "text-gray-700 dark:text-gray-300")}>Comprar</h3>
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setModules({ ...modules, packing: !modules.packing })}
+                          className={clsx(
+                            "p-3 rounded-xl border-2 text-center transition-all flex flex-col items-center justify-center gap-2",
+                            modules.packing
+                              ? "border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20"
+                              : "border-gray-200 dark:border-gray-700 hover:border-indigo-300"
+                          )}
+                        >
+                          <Luggage size={20} className={modules.packing ? "text-indigo-600" : "text-gray-400"} />
+                          <div>
+                            <h3 className={clsx("font-semibold text-xs", modules.packing ? "text-indigo-900 dark:text-indigo-100" : "text-gray-700 dark:text-gray-300")}>Empacar</h3>
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                        Configuración Base
+                      </label>
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Moneda Principal</label>
+                          <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">
+                            <button
+                              type="button"
+                              onClick={() => setCurrency('S/')}
+                              className={clsx(
+                                "flex-1 py-2 text-sm font-medium rounded-lg transition-all",
+                                currency === 'S/' ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm" : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                              )}
+                            >
+                              Soles (S/)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setCurrency('$')}
+                              className={clsx(
+                                "flex-1 py-2 text-sm font-medium rounded-lg transition-all",
+                                currency === '$' ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm" : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                              )}
+                            >
+                              Dólares ($)
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3 pt-4">
+                      <button
+                        type="button"
+                        onClick={() => setPhase(1)}
+                        className="flex-1 px-4 py-3 text-gray-600 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors"
+                      >
+                        Atrás
+                      </button>
+                      <button
+                        type="submit"
+                        className="flex-1 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl transition-colors"
+                      >
+                        {editingTemplateId ? 'Guardar Cambios' : 'Crear Plantilla'}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </form>
             </motion.div>
           </div>

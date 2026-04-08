@@ -515,7 +515,7 @@ export const DashboardScreen = () => {
   }
 
   return (
-    <div className="flex flex-col h-full pb-32 overflow-y-auto bg-notion-bg dark:bg-notion-dark-bg">
+    <div className="flex flex-col h-full overflow-y-auto bg-notion-bg dark:bg-notion-dark-bg">
       {/* 6.1. Header Fijo y KPIs Globales */}
       <div className="sticky top-0 z-10 bg-white/80 dark:bg-notion-dark-bg/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 p-6">
         <div className="flex justify-between items-start">
@@ -1116,6 +1116,8 @@ export const DashboardScreen = () => {
             )}
           </div>
         )}
+        {/* Spacer to allow scrolling past the nav bar */}
+        <div className="h-24" />
       </div>
     </div>
   );

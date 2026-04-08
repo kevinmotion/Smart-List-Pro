@@ -225,7 +225,7 @@ export const GroupsScreen = () => {
         </p>
       </div>
 
-      <div className="flex-1 overflow-y-auto pb-32">
+      <div className="flex-1 overflow-y-auto">
         {/* Invitar Participantes - Solo para compartidas */}
         {!isSolo && (
           <div className="border-b border-gray-100 dark:border-gray-800">
@@ -771,6 +771,8 @@ export const GroupsScreen = () => {
             )}
           </AnimatePresence>
         </div>
+        {/* Spacer to allow scrolling past the nav bar */}
+        <div className="h-24" />
       </div>
 
       {/* Modal Añadir/Editar Tag */}

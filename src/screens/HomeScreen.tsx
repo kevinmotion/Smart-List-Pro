@@ -20,8 +20,9 @@ import {
   UserPlus,
   Users,
   Pipette,
-  Calendar,
+  Pencil,
   ShoppingCart,
+  Luggage,
   Package,
   Download,
   Wallet,
@@ -48,7 +49,6 @@ export const HomeScreen = () => {
     lists,
     activeListId,
     locations,
-    catalogItems,
   } = useStore();
 
   const activeList = lists.find((l) => l.id === activeListId);
@@ -60,7 +60,7 @@ export const HomeScreen = () => {
   // Form State
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [name, setName] = useState("");
-  const [emoji, setEmoji] = useState("🛒");
+  const [emoji, setEmoji] = useState("");
   const [details, setDetails] = useState("");
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [price, setPrice] = useState("");
@@ -101,9 +101,19 @@ export const HomeScreen = () => {
   const [altName, setAltName] = useState("");
 
   // Import Bridge states
-  const [showImportMenu, setShowImportMenu] = useState(false);
-  const [showCatalogSheet, setShowCatalogSheet] = useState(false);
   const [masterLocationId, setMasterLocationId] = useState<string>("");
+  const [showMasterLocationDropdown, setShowMasterLocationDropdown] = useState(false);
+  const masterLocationRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (masterLocationRef.current && !masterLocationRef.current.contains(event.target as Node)) {
+        setShowMasterLocationDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   useEffect(() => {
     setMasterLocationId("");
@@ -292,7 +302,7 @@ export const HomeScreen = () => {
       if (showFabMenu) {
         setShowFabMenu(false);
       } else {
-        setShowImportMenu(true);
+        setIsAdding(true);
       }
     }
   };
@@ -555,46 +565,39 @@ export const HomeScreen = () => {
   }
 
   return (
-    <div className="flex flex-col h-full pb-32">
+    <div className="flex flex-col h-full">
       {/* Header & Context Switcher */}
       <div className="bg-white dark:bg-notion-dark-bg border-b border-gray-200 dark:border-gray-800 sticky top-0 z-30">
         {(activeGroup || isSolo) && (
-          <div className="px-4 py-3 flex justify-between items-end">
+          <div className="px-4 py-2 flex justify-between items-center">
             <div className="flex items-center gap-3">
               {availableModes.length > 1 && (
                 <button
                   onClick={toggleListMode}
-                  className={clsx(
-                    "w-12 h-12 rounded-full flex items-center justify-center transition-all shadow-sm border",
-                    listMode === "planning"
-                      ? "bg-amber-100 border-amber-200 text-amber-700 dark:bg-amber-900/40 dark:border-amber-800 dark:text-amber-300"
-                      : listMode === "shopping"
-                        ? "bg-cyan-100 border-cyan-200 text-cyan-700 dark:bg-cyan-900/40 dark:border-cyan-800 dark:text-cyan-300"
-                        : "bg-indigo-100 border-indigo-200 text-indigo-700 dark:bg-indigo-900/40 dark:border-indigo-800 dark:text-indigo-300",
-                  )}
+                  className="w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-sm border bg-white border-gray-200 text-gray-700 dark:bg-notion-dark-gray-bg dark:border-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                 >
                   {listMode === "planning" ? (
-                    <Calendar size={20} />
+                    <Pencil size={18} />
                   ) : listMode === "shopping" ? (
-                    <ShoppingCart size={20} />
+                    <ShoppingCart size={18} />
                   ) : (
-                    <Package size={20} />
+                    <Luggage size={18} />
                   )}
                 </button>
               )}
               <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider font-semibold">
+                <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-wider font-semibold leading-none mb-0.5">
                   {isSolo ? 'Total Lista' : 'Total Grupo'}
                 </p>
-                <p className="text-2xl font-bold">S/ {totalSpent.toFixed(2)}</p>
+                <p className="text-xl font-bold leading-none">S/ {totalSpent.toFixed(2)}</p>
               </div>
             </div>
             {!isSolo && (
               <div className="text-right">
-                <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider font-semibold">
+                <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-wider font-semibold leading-none mb-0.5">
                   Cuota ({activeGroup?.peopleIds.length || 0} pers)
                 </p>
-                <p className="text-lg font-semibold text-cyan-600 dark:text-cyan-400">
+                <p className="text-base font-semibold text-cyan-600 dark:text-cyan-400 leading-none">
                   S/ {quota.toFixed(2)}
                 </p>
               </div>
@@ -603,23 +606,56 @@ export const HomeScreen = () => {
         )}
 
         {listMode === "shopping" && locations.length > 0 && (
-          <div className="px-4 py-2 bg-indigo-50/50 dark:bg-indigo-900/10 border-t border-indigo-100 dark:border-indigo-900/30 flex items-center justify-between">
-            <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400">
-              <MapPin size={14} />
-              <span className="text-[11px] font-bold uppercase tracking-wider">Comprando en:</span>
+          <div className="px-4 py-2 bg-gray-50/80 dark:bg-gray-900/40 border-t border-gray-100 dark:border-gray-800/50 flex items-center justify-between backdrop-blur-sm relative">
+            <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+              <MapPin size={13} className="opacity-70" />
+              <span className="text-[10px] font-bold uppercase tracking-widest">Comprando en:</span>
             </div>
-            <select
-              value={masterLocationId}
-              onChange={(e) => setMasterLocationId(e.target.value)}
-              className="bg-transparent text-xs font-bold text-indigo-700 dark:text-indigo-300 focus:outline-none cursor-pointer text-right"
-            >
-              <option value="">Cualquier local</option>
-              {locations.map((loc) => (
-                <option key={loc.id} value={loc.id}>
-                  {loc.name}
-                </option>
-              ))}
-            </select>
+            <div className="relative" ref={masterLocationRef}>
+              <button
+                onClick={() => setShowMasterLocationDropdown(!showMasterLocationDropdown)}
+                className="flex items-center gap-1.5 text-xs font-bold text-gray-700 dark:text-gray-200 focus:outline-none cursor-pointer"
+              >
+                <span>{locations.find(l => l.id === masterLocationId)?.name || "Cualquier local"}</span>
+                <ChevronDown size={12} className={clsx("text-gray-400 transition-transform", showMasterLocationDropdown && "rotate-180")} />
+              </button>
+
+              {showMasterLocationDropdown && (
+                <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-notion-dark-bg rounded-xl shadow-xl border border-gray-100 dark:border-gray-800 p-2 z-50 flex flex-col gap-1.5 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <button
+                    onClick={() => {
+                      setMasterLocationId("");
+                      setShowMasterLocationDropdown(false);
+                    }}
+                    className={clsx(
+                      "w-full text-left px-3 py-1.5 rounded-full text-[11px] font-bold transition-all",
+                      masterLocationId === ""
+                        ? "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300"
+                        : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+                    )}
+                  >
+                    Cualquier local
+                  </button>
+                  {locations.map((loc) => (
+                    <button
+                      key={loc.id}
+                      onClick={() => {
+                        setMasterLocationId(loc.id);
+                        setShowMasterLocationDropdown(false);
+                      }}
+                      className={clsx(
+                        "w-full text-left px-3 py-1.5 rounded-full text-[11px] font-bold transition-all truncate",
+                        masterLocationId === loc.id
+                          ? "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300"
+                          : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+                      )}
+                    >
+                      {loc.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -631,23 +667,27 @@ export const HomeScreen = () => {
             No hay ítems registrados en este grupo.
           </div>
         ) : (
-          <GroupedItemList
-            items={groupItems}
-            tags={tags}
-            activeGroup={activeGroup}
-            onEdit={handleEditItem}
-            onDelete={removeItem}
-            onShowPhoto={setPhotoId}
-            onToggleBought={(id, isBought) => {
-              const updates: Partial<Item> = { isBought };
-              if (isBought && masterLocationId) {
-                updates.locationId = masterLocationId;
-              }
-              updateItem(id, updates);
-            }}
-            onTogglePacked={(id, isPacked) => updateItem(id, { isPacked })}
-            listMode={listMode}
-          />
+          <>
+            <GroupedItemList
+              items={groupItems}
+              tags={tags}
+              activeGroup={activeGroup}
+              onEdit={handleEditItem}
+              onDelete={removeItem}
+              onShowPhoto={setPhotoId}
+              onToggleBought={(id, isBought) => {
+                const updates: Partial<Item> = { isBought };
+                if (isBought && masterLocationId) {
+                  updates.locationId = masterLocationId;
+                }
+                updateItem(id, updates);
+              }}
+              onTogglePacked={(id, isPacked) => updateItem(id, { isPacked })}
+              listMode={listMode}
+            />
+            {/* Spacer to allow scrolling past the FAB */}
+            <div className="h-24" />
+          </>
         )}
       </div>
 
@@ -1449,7 +1489,7 @@ export const HomeScreen = () => {
                               className="w-full h-12 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             >
                               <div className="flex items-center gap-2 overflow-hidden">
-                                <Package
+                                <Luggage
                                   size={14}
                                   className="text-gray-400 shrink-0"
                                 />
@@ -1948,105 +1988,6 @@ export const HomeScreen = () => {
               >
                 <Download size={18} /> Descargar .txt
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Import Menu Action Sheet */}
-      {showImportMenu && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowImportMenu(false)} />
-          <div className="relative w-full max-w-md bg-white dark:bg-notion-dark-bg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-full sm:zoom-in-95 duration-300">
-            <div className="p-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center">
-              <h3 className="font-bold text-gray-900 dark:text-gray-100">Añadir Ítem</h3>
-              <button onClick={() => setShowImportMenu(false)} className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
-                <X size={20} />
-              </button>
-            </div>
-            <div className="p-4 space-y-3">
-              <button
-                onClick={() => {
-                  setShowImportMenu(false);
-                  setIsAdding(true);
-                }}
-                className="w-full flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-800 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-left"
-              >
-                <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg flex items-center justify-center shrink-0">
-                  <Plus size={20} />
-                </div>
-                <div>
-                  <div className="font-bold text-gray-900 dark:text-gray-100">Crear ítem desde cero</div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">Añade un producto nuevo a tu lista</div>
-                </div>
-              </button>
-              <button
-                onClick={() => {
-                  setShowImportMenu(false);
-                  setShowCatalogSheet(true);
-                }}
-                className="w-full flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-800 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-left"
-              >
-                <div className="w-10 h-10 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg flex items-center justify-center shrink-0">
-                  <Package size={20} />
-                </div>
-                <div>
-                  <div className="font-bold text-gray-900 dark:text-gray-100">Importar del Catálogo Maestro</div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">Usa una plantilla guardada</div>
-                </div>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Catalog Bottom Sheet */}
-      {showCatalogSheet && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowCatalogSheet(false)} />
-          <div className="relative w-full max-w-md bg-white dark:bg-notion-dark-bg rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col h-[80vh] sm:h-[600px] animate-in slide-in-from-bottom-full sm:zoom-in-95 duration-300">
-            <div className="p-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center shrink-0">
-              <h3 className="font-bold text-gray-900 dark:text-gray-100">Catálogo Maestro</h3>
-              <button onClick={() => setShowCatalogSheet(false)} className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
-                <X size={20} />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4">
-              {catalogItems.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-center text-gray-500 dark:text-gray-400">
-                  <Package size={32} className="mb-2 opacity-50" />
-                  <p>Tu catálogo está vacío.</p>
-                  <p className="text-xs mt-1">Ve a la pestaña Catálogo para crear plantillas.</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-3">
-                  {catalogItems.map(item => (
-                    <button
-                      key={item.id}
-                      onClick={() => {
-                        setShowCatalogSheet(false);
-                        setName(item.name);
-                        setEmoji(item.emoji === '🛒' ? '' : item.emoji);
-                        setPresentation(item.presentation || '');
-                        setUnit(item.unitType || 'un');
-                        // Try to match category
-                        const matchedTag = tags.find(t => t.name.toLowerCase() === item.defaultCategory?.toLowerCase());
-                        if (matchedTag) {
-                          setTagId(matchedTag.id);
-                        }
-                        setIsAdding(true);
-                      }}
-                      className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3 text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border border-gray-100 dark:border-gray-700"
-                    >
-                      <div className="text-2xl mb-1">{item.emoji}</div>
-                      <div className="font-bold text-sm text-gray-900 dark:text-gray-100 line-clamp-2">{item.name}</div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        {item.presentation} {item.unitType}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
           </div>
         </div>

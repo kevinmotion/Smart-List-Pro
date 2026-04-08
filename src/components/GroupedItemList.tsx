@@ -341,6 +341,7 @@ export const GroupedItemList: React.FC<GroupedItemListProps> = ({
                                 onShowPhoto={onShowPhoto}
                                 onToggleBought={onToggleBought}
                                 onTogglePacked={onTogglePacked}
+                                onUpdateItem={updateItem}
                                 listMode={listMode}
                               />
                             ))
@@ -357,6 +358,7 @@ export const GroupedItemList: React.FC<GroupedItemListProps> = ({
                                   onShowPhoto={onShowPhoto}
                                   onToggleBought={onToggleBought}
                                   onTogglePacked={onTogglePacked}
+                                  onUpdateItem={updateItem}
                                   listMode={listMode}
                                 />
                               ))}
@@ -392,6 +394,7 @@ export const GroupedItemList: React.FC<GroupedItemListProps> = ({
                                     onShowPhoto={onShowPhoto}
                                     onToggleBought={onToggleBought}
                                     onTogglePacked={onTogglePacked}
+                                    onUpdateItem={updateItem}
                                     listMode={listMode}
                                   />
                                 ))}
@@ -453,6 +456,7 @@ export const GroupedItemList: React.FC<GroupedItemListProps> = ({
                             onShowPhoto={onShowPhoto}
                             onToggleBought={onToggleBought}
                             onTogglePacked={onTogglePacked}
+                            onUpdateItem={updateItem}
                             listMode={listMode}
                           />
                         ))}
@@ -491,6 +495,7 @@ export const GroupedItemList: React.FC<GroupedItemListProps> = ({
                         onShowPhoto={onShowPhoto}
                         onToggleBought={onToggleBought}
                         onTogglePacked={onTogglePacked}
+                        onUpdateItem={updateItem}
                         listMode={listMode}
                       />
                     ))}
@@ -528,6 +533,7 @@ export const GroupedItemList: React.FC<GroupedItemListProps> = ({
                         onShowPhoto={onShowPhoto}
                         onToggleBought={onToggleBought}
                         onTogglePacked={onTogglePacked}
+                        onUpdateItem={updateItem}
                         listMode={listMode}
                       />
                     ))}
@@ -557,6 +563,7 @@ export const GroupedItemList: React.FC<GroupedItemListProps> = ({
               onShowPhoto={() => {}}
               onToggleBought={() => {}}
               onTogglePacked={() => {}}
+              onUpdateItem={updateItem}
               listMode={listMode}
             />
           </div>

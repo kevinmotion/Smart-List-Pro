@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useStore, SmartList } from '../store';
-import { ChevronRight, ListTodo, Plus, Users, User, Calendar, ShoppingCart, Package, Trash2, LogOut, Settings, Check, Home, PartyPopper, Plane, Gift, Utensils, Backpack, Car, Dog, Baby, Briefcase, GraduationCap, Heart, Dumbbell, Music, Camera, Gamepad2, Coffee, Pizza, IceCream, Sun, Moon, Cloud, TreeDeciduous, Mountain, Waves, Palette, Brush, Pen, Book, Wallet, CreditCard, Smartphone, Laptop, Zap, Droplets, Flame, Hammer, Wrench, Shield, Key, Lock, FilePlus, Copy, X } from 'lucide-react';
+import { ChevronRight, ListTodo, Plus, Users, User, Pencil, ShoppingCart, Luggage, Trash2, LogOut, Settings, Check, Home, PartyPopper, Plane, Gift, Utensils, Backpack, Car, Dog, Baby, Briefcase, GraduationCap, Heart, Dumbbell, Music, Camera, Gamepad2, Coffee, Pizza, IceCream, Sun, Moon, Cloud, TreeDeciduous, Mountain, Waves, Palette, Brush, Pen, Book, Wallet, CreditCard, Smartphone, Laptop, Zap, Droplets, Flame, Hammer, Wrench, Shield, Key, Lock, FilePlus, Copy, X, Pipette, ChevronDown, CheckCircle2, Circle, Calendar, Package } from 'lucide-react';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { collection, query, where, onSnapshot, addDoc, serverTimestamp, deleteDoc, doc, writeBatch } from 'firebase/firestore';
 import { clsx } from 'clsx';
@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { NOTION_COLORS, LIST_ICONS, LIST_COLORS } from '../constants';
 
 const IconMap: Record<string, any> = {
-  ShoppingCart, Home, PartyPopper, Plane, Gift, Utensils, Backpack, Car, Dog, Baby, Briefcase, GraduationCap, Heart, Dumbbell, Music, Camera, Gamepad2, Coffee, Pizza, IceCream, Sun, Moon, Cloud, TreeDeciduous, Mountain, Waves, Palette, Brush, Pen, Book, Users, User, Calendar, Package, Wallet, CreditCard, Smartphone, Laptop, Zap, Droplets, Flame, Hammer, Wrench, Shield, Key, Lock
+  ShoppingCart, Home, PartyPopper, Plane, Gift, Utensils, Backpack, Car, Dog, Baby, Briefcase, GraduationCap, Heart, Dumbbell, Music, Camera, Gamepad2, Coffee, Pizza, IceCream, Sun, Moon, Cloud, TreeDeciduous, Mountain, Waves, Palette, Brush, Pen, Book, Users, User, Pencil, Luggage, Wallet, CreditCard, Smartphone, Laptop, Zap, Droplets, Flame, Hammer, Wrench, Shield, Key, Lock, Calendar, Package
 };
 
 const TemplateImportModal = ({
@@ -26,12 +26,14 @@ const TemplateImportModal = ({
 }) => {
   const [listName, setListName] = useState('');
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (isOpen && template) {
       const dateStr = new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: 'short' }).format(new Date());
       setListName(`${template.name} - ${dateStr}`);
       setSelectedItems(new Set((template.items || []).map((item: any) => item.id)));
+      setCollapsedCategories(new Set());
     }
   }, [isOpen, template]);
 
@@ -51,6 +53,37 @@ const TemplateImportModal = ({
       newSelected.add(itemId);
     }
     setSelectedItems(newSelected);
+  };
+
+  const handleToggleCategory = (categoryId: string) => {
+    const newCollapsed = new Set(collapsedCategories);
+    if (newCollapsed.has(categoryId)) {
+      newCollapsed.delete(categoryId);
+    } else {
+      newCollapsed.add(categoryId);
+    }
+    setCollapsedCategories(newCollapsed);
+  };
+
+  const handleToggleAllInCategory = (categoryId: string, items: any[]) => {
+    const newSelected = new Set(selectedItems);
+    const allSelected = items.every(item => newSelected.has(item.id));
+    
+    if (allSelected) {
+      items.forEach(item => newSelected.delete(item.id));
+    } else {
+      items.forEach(item => newSelected.add(item.id));
+    }
+    setSelectedItems(newSelected);
+  };
+
+  const handleToggleSelectAll = () => {
+    const allItems = template.items || [];
+    if (selectedItems.size === allItems.length) {
+      setSelectedItems(new Set());
+    } else {
+      setSelectedItems(new Set(allItems.map((item: any) => item.id)));
+    }
   };
 
   return (
@@ -86,33 +119,107 @@ const TemplateImportModal = ({
           </div>
 
           <div>
-            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-              Selecciona los items a importar
-            </h3>
-            <div className="space-y-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Selecciona los items a importar
+              </h3>
+              <button
+                type="button"
+                onClick={handleToggleSelectAll}
+                className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
+              >
+                {selectedItems.size === (template.items || []).length ? 'Deseleccionar todo' : 'Seleccionar todo'}
+              </button>
+            </div>
+            <div className="space-y-3">
               {Object.entries(itemsByCategory).map(([categoryId, items]) => {
                 const category = (template.categories || []).find((c: any) => c.id === categoryId);
+                const isCollapsed = collapsedCategories.has(categoryId);
+                const categoryItems = items as any[];
+                const selectedInCategory = categoryItems.filter(item => selectedItems.has(item.id)).length;
+                const allSelected = selectedInCategory === categoryItems.length;
+
                 return (
-                  <div key={categoryId} className="space-y-2">
-                    <h4 className="text-sm font-semibold text-gray-500 dark:text-gray-400 flex items-center gap-2">
-                      {category?.emoji} {category?.name || 'Sin categoría'}
-                    </h4>
-                    <div className="space-y-1">
-                      {(items as any[]).map(item => (
-                        <label key={item.id} className="flex items-center gap-3 p-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg cursor-pointer transition-colors">
-                          <input
-                            type="checkbox"
-                            checked={selectedItems.has(item.id)}
-                            onChange={() => handleToggleItem(item.id)}
-                            className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
-                          />
-                          <span className="text-gray-900 dark:text-gray-100">
-                            {item.emoji && <span className="mr-2">{item.emoji}</span>}
-                            {item.name}
-                          </span>
-                        </label>
-                      ))}
+                  <div key={categoryId} className="border border-gray-100 dark:border-gray-800 rounded-2xl overflow-hidden">
+                    <div 
+                      className="flex items-center justify-between p-3 bg-gray-50/50 dark:bg-gray-800/50 cursor-pointer"
+                      onClick={() => handleToggleCategory(categoryId)}
+                    >
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleToggleAllInCategory(categoryId, categoryItems);
+                          }}
+                          className={clsx(
+                            "w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all",
+                            allSelected 
+                              ? "bg-indigo-600 border-indigo-600" 
+                              : selectedInCategory > 0 
+                                ? "border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20"
+                                : "border-gray-300 dark:border-gray-600"
+                          )}
+                        >
+                          {allSelected ? (
+                            <Check size={12} className="text-white" />
+                          ) : selectedInCategory > 0 ? (
+                            <div className="w-2 h-0.5 bg-indigo-600 rounded-full" />
+                          ) : null}
+                        </button>
+                        <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                          {category?.emoji} {category?.name || 'Sin categoría'}
+                        </span>
+                        <span className="text-[10px] text-gray-400 font-medium bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded-full">
+                          {selectedInCategory}/{categoryItems.length}
+                        </span>
+                      </div>
+                      <ChevronDown 
+                        size={16} 
+                        className={clsx("text-gray-400 transition-transform", isCollapsed && "-rotate-90")} 
+                      />
                     </div>
+                    
+                    {!isCollapsed && (
+                      <div className="divide-y divide-gray-50 dark:divide-gray-800">
+                        {categoryItems.map(item => (
+                          <div 
+                            key={item.id}
+                            onClick={() => handleToggleItem(item.id)}
+                            className="flex items-center gap-3 py-3 pr-3 pl-8 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors"
+                          >
+                            <div className={clsx(
+                              "shrink-0 transition-colors",
+                              selectedItems.has(item.id)
+                                ? "text-indigo-600 dark:text-indigo-400"
+                                : "text-gray-300 dark:text-gray-600 hover:text-indigo-400"
+                            )}>
+                              {selectedItems.has(item.id) ? (
+                                <CheckCircle2 size={20} />
+                              ) : (
+                                <Circle size={20} />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                {item.emoji && <span className="text-lg">{item.emoji}</span>}
+                                <span className={clsx(
+                                  "text-sm font-medium truncate",
+                                  selectedItems.has(item.id) ? "text-gray-900 dark:text-gray-100" : "text-gray-500 dark:text-gray-400"
+                                )}>
+                                  {item.name}
+                                </span>
+                              </div>
+                              {item.details && (
+                                <p className="text-[10px] text-gray-400 truncate ml-0 mt-0.5">
+                                  {item.details}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -147,8 +254,8 @@ const TemplateImportModal = ({
 
 export const LobbyScreen = () => {
   const { setIsInLobby, currentUser, lists, setLists, setActiveListId, templates } = useStore();
-  const [isActionSheetOpen, setIsActionSheetOpen] = useState(false);
   const [isWizardOpen, setIsWizardOpen] = useState(false);
+  const [wizardPhase, setWizardPhase] = useState<1 | 2>(1);
   const [isTemplateSelectOpen, setIsTemplateSelectOpen] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [newTemplateListName, setNewTemplateListName] = useState('');
@@ -166,9 +273,46 @@ export const LobbyScreen = () => {
   const [listToDelete, setListToDelete] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+  const isLongPressTriggered = useRef(false);
+
+  const handleFabPointerDown = () => {
+    isLongPressTriggered.current = false;
+    longPressTimer.current = setTimeout(() => {
+      isLongPressTriggered.current = true;
+      if (templates.length > 0) {
+        setIsTemplateSelectOpen(true);
+      }
+    }, 600);
+  };
+
+  const handleFabPointerUp = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+
+    if (!isLongPressTriggered.current) {
+      setWizardPhase(1);
+      setIsWizardOpen(true);
+    }
+  };
+
+  const handleFabPointerLeave = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
   const handleCreateList = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser || !newListName.trim() || isSubmitting) return;
+
+    if (wizardPhase === 1) {
+      setWizardPhase(2);
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -200,6 +344,7 @@ export const LobbyScreen = () => {
       ]);
       
       setIsWizardOpen(false);
+      setWizardPhase(1);
       setNewListName('');
       setNewListType('solo');
       setNewListFeatures({ planning: true, shopping: true, packing: false });
@@ -395,72 +540,16 @@ export const LobbyScreen = () => {
         )}
       </div>
 
-      {/* FAB */}
+      {/* Main FAB */}
       <button
-        onClick={() => setIsActionSheetOpen(true)}
-        className="absolute bottom-24 right-6 w-14 h-14 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center z-40"
+        onPointerDown={handleFabPointerDown}
+        onPointerUp={handleFabPointerUp}
+        onPointerLeave={handleFabPointerLeave}
+        className="absolute bottom-24 right-6 w-14 h-14 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center z-40 active:scale-95 touch-none"
+        title="Presiona para crear desde cero, mantén para usar plantilla"
       >
         <Plus size={28} />
       </button>
-
-      {/* Action Sheet */}
-      <AnimatePresence>
-        {isActionSheetOpen && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center sm:items-center p-4">
-            <motion.div
-              initial={{ opacity: 0, y: 100 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 100 }}
-              className="bg-white dark:bg-notion-dark-bg w-full max-w-md rounded-3xl p-6 shadow-2xl relative"
-            >
-              <button
-                onClick={() => setIsActionSheetOpen(false)}
-                className="absolute top-4 right-4 p-1.5 bg-gray-100 dark:bg-gray-800 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-full transition-colors z-10"
-              >
-                <X size={16} />
-              </button>
-              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-6">
-                ¿Cómo quieres crear tu lista?
-              </h2>
-              <div className="space-y-3">
-                <button
-                  onClick={() => {
-                    setIsActionSheetOpen(false);
-                    setIsWizardOpen(true);
-                  }}
-                  className="w-full flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-2xl transition-colors text-left"
-                >
-                  <div className="w-12 h-12 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
-                    <FilePlus size={24} />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-gray-900 dark:text-gray-100">Desde cero</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Crea una lista en blanco y configúrala a tu gusto.</p>
-                  </div>
-                </button>
-                
-                {templates.length > 0 && (
-                  <button
-                    onClick={() => {
-                      setIsActionSheetOpen(false);
-                      setIsTemplateSelectOpen(true);
-                    }}
-                    className="w-full flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-2xl transition-colors text-left"
-                  >
-                    <div className="w-12 h-12 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
-                      <Copy size={24} />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-gray-900 dark:text-gray-100">Desde una plantilla</h3>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">Usa una plantilla existente con categorías y ubicaciones predefinidas.</p>
-                    </div>
-                  </button>
-                )}
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
 
       {/* Template Selection Modal */}
       <AnimatePresence>
@@ -495,7 +584,7 @@ export const LobbyScreen = () => {
                     className="w-full flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-2xl transition-colors text-left"
                   >
                     <div className="w-12 h-12 rounded-xl flex items-center justify-center shadow-inner shrink-0" style={{ backgroundColor: template.color }}>
-                      <span className="text-2xl">{template.emoji}</span>
+                      {IconMap[template.emoji] ? React.createElement(IconMap[template.emoji], { size: 24, className: "text-white" }) : <ShoppingCart size={24} className="text-white" />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-bold text-gray-900 dark:text-gray-100 truncate">{template.name}</h3>
@@ -534,235 +623,312 @@ export const LobbyScreen = () => {
               exit={{ opacity: 0, y: 50 }}
               className="bg-white dark:bg-notion-dark-bg w-full max-w-md rounded-3xl p-6 shadow-2xl max-h-[85vh] overflow-y-auto"
             >
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">Nueva Lista</h2>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Nueva Lista</h2>
+                <div className="flex gap-1">
+                  <div className={clsx("w-2 h-2 rounded-full transition-colors", wizardPhase === 1 ? "bg-indigo-600" : "bg-gray-200 dark:bg-gray-700")} />
+                  <div className={clsx("w-2 h-2 rounded-full transition-colors", wizardPhase === 2 ? "bg-indigo-600" : "bg-gray-200 dark:bg-gray-700")} />
+                </div>
+              </div>
               
               <form onSubmit={handleCreateList} className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                  ¿Cómo será esta lista?
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setNewListType('solo')}
-                    className={clsx(
-                      "p-4 rounded-2xl border-2 text-left transition-all",
-                      newListType === 'solo'
-                        ? "border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20"
-                        : "border-gray-200 dark:border-gray-700 hover:border-indigo-300"
-                    )}
-                  >
-                    <User size={24} className={clsx("mb-2", newListType === 'solo' ? "text-indigo-600" : "text-gray-400")} />
-                    <h3 className={clsx("font-semibold", newListType === 'solo' ? "text-indigo-900 dark:text-indigo-100" : "text-gray-700 dark:text-gray-300")}>Solo</h3>
-                    <p className="text-xs text-gray-500 mt-1">Personal, sin deudas ni divisiones.</p>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setNewListType('shared')}
-                    className={clsx(
-                      "p-4 rounded-2xl border-2 text-left transition-all",
-                      newListType === 'shared'
-                        ? "border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20"
-                        : "border-gray-200 dark:border-gray-700 hover:border-indigo-300"
-                    )}
-                  >
-                    <Users size={24} className={clsx("mb-2", newListType === 'shared' ? "text-indigo-600" : "text-gray-400")} />
-                    <h3 className={clsx("font-semibold", newListType === 'shared' ? "text-indigo-900 dark:text-indigo-100" : "text-gray-700 dark:text-gray-300")}>Compartida</h3>
-                    <p className="text-xs text-gray-500 mt-1">Grupo o pareja, divide gastos.</p>
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                  Identidad de la lista
-                </label>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-6 gap-2 mb-4 max-h-40 overflow-y-auto p-2 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-700">
-                    {LIST_ICONS.map(icon => (
-                      <button
-                        key={icon.id}
-                        type="button"
-                        onClick={() => setNewListEmoji(icon.id)}
-                        className={clsx(
-                          "aspect-square flex items-center justify-center rounded-lg transition-all",
-                          newListEmoji === icon.id ? "bg-indigo-600 text-white shadow-md scale-110" : "bg-white dark:bg-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-                        )}
-                      >
-                        {IconMap[icon.id] ? React.createElement(IconMap[icon.id], { size: 20 }) : <ShoppingCart size={20} />}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="flex flex-wrap gap-2 mb-4 justify-center">
-                    {LIST_COLORS.map(c => (
-                      <button
-                        key={c.id}
-                        type="button"
-                        onClick={() => setNewListColor(c.textVar)}
-                        style={{ backgroundColor: c.textVar }}
-                        className={clsx(
-                          "w-6 h-6 rounded-full transition-all flex items-center justify-center shadow-sm border border-black/5 dark:border-white/5",
-                          newListColor === c.textVar ? "ring-2 ring-offset-2 ring-indigo-500 dark:ring-offset-gray-900 scale-110" : "hover:scale-110"
-                        )}
-                      >
-                        {newListColor === c.textVar && <Check size={12} className="text-white" />}
-                      </button>
-                    ))}
-                  </div>
-                  <input
-                    type="text"
-                    value={newListName}
-                    onChange={(e) => setNewListName(e.target.value)}
-                    required
-                    placeholder="Ej. Compras de la casa"
-                    className="w-full bg-white dark:bg-notion-dark-gray-bg border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                  ¿Qué herramientas necesitas?
-                </label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setNewListFeatures({ ...newListFeatures, planning: !newListFeatures.planning })}
-                    className={clsx(
-                      "p-3 rounded-xl border-2 text-center transition-all flex flex-col items-center justify-center gap-2",
-                      newListFeatures.planning
-                        ? "border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20"
-                        : "border-gray-200 dark:border-gray-700 hover:border-indigo-300"
-                    )}
-                  >
-                    <Calendar size={20} className={newListFeatures.planning ? "text-indigo-600" : "text-gray-400"} />
+                {wizardPhase === 1 ? (
+                  <div key="phase1" className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                     <div>
-                      <span className={clsx("block text-sm font-medium", newListFeatures.planning ? "text-indigo-900 dark:text-indigo-100" : "text-gray-700 dark:text-gray-300")}>Planificación</span>
-                      <span className="block text-[10px] text-gray-500 mt-0.5 leading-tight">Organiza ideas antes de comprar.</span>
-                    </div>
-                  </button>
-                  
-                  <button
-                    type="button"
-                    onClick={() => setNewListFeatures({ ...newListFeatures, shopping: !newListFeatures.shopping })}
-                    className={clsx(
-                      "p-3 rounded-xl border-2 text-center transition-all flex flex-col items-center justify-center gap-2",
-                      newListFeatures.shopping
-                        ? "border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20"
-                        : "border-gray-200 dark:border-gray-700 hover:border-indigo-300"
-                    )}
-                  >
-                    <ShoppingCart size={20} className={newListFeatures.shopping ? "text-indigo-600" : "text-gray-400"} />
-                    <div>
-                      <span className={clsx("block text-sm font-medium", newListFeatures.shopping ? "text-indigo-900 dark:text-indigo-100" : "text-gray-700 dark:text-gray-300")}>Compra</span>
-                      <span className="block text-[10px] text-gray-500 mt-0.5 leading-tight">Anota precios y cantidades.</span>
-                    </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setNewListFeatures({ ...newListFeatures, packing: !newListFeatures.packing })}
-                    className={clsx(
-                      "p-3 rounded-xl border-2 text-center transition-all flex flex-col items-center justify-center gap-2",
-                      newListFeatures.packing
-                        ? "border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20"
-                        : "border-gray-200 dark:border-gray-700 hover:border-indigo-300"
-                    )}
-                  >
-                    <Package size={20} className={newListFeatures.packing ? "text-indigo-600" : "text-gray-400"} />
-                    <div>
-                      <span className={clsx("block text-sm font-medium", newListFeatures.packing ? "text-indigo-900 dark:text-indigo-100" : "text-gray-700 dark:text-gray-300")}>Empaque</span>
-                      <span className="block text-[10px] text-gray-500 mt-0.5 leading-tight">Verifica que no olvides nada.</span>
-                    </div>
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                  Finanzas
-                </label>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-xs text-gray-500 mb-1">Moneda Base</label>
-                    <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">
-                      <button
-                        type="button"
-                        onClick={() => setNewListCurrency('S/')}
-                        className={clsx(
-                          "flex-1 py-2 text-sm font-medium rounded-lg transition-all",
-                          newListCurrency === 'S/' ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm" : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-                        )}
-                      >
-                        Soles (S/)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setNewListCurrency('$')}
-                        className={clsx(
-                          "flex-1 py-2 text-sm font-medium rounded-lg transition-all",
-                          newListCurrency === '$' ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm" : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-                        )}
-                      >
-                        Dólares ($)
-                      </button>
-                    </div>
-                  </div>
-
-                  {newListType === 'shared' && (
-                    <div>
-                      <label className="block text-xs text-gray-500 mb-1">Modo de Pago</label>
-                      <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                        ¿Cómo será esta lista?
+                      </label>
+                      <div className="grid grid-cols-2 gap-3">
                         <button
                           type="button"
-                          onClick={() => setNewListPaymentMode('centralized')}
+                          onClick={() => setNewListType('solo')}
                           className={clsx(
-                            "flex-1 py-2 text-sm font-medium rounded-lg transition-all",
-                            newListPaymentMode === 'centralized' ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm" : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                            "p-4 rounded-2xl border-2 text-left transition-all",
+                            newListType === 'solo'
+                              ? "border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20"
+                              : "border-gray-200 dark:border-gray-700 hover:border-indigo-300"
                           )}
                         >
-                          Centralizado
+                          <User size={24} className={clsx("mb-2", newListType === 'solo' ? "text-indigo-600" : "text-gray-400")} />
+                          <h3 className={clsx("font-semibold", newListType === 'solo' ? "text-indigo-900 dark:text-indigo-100" : "text-gray-700 dark:text-gray-300")}>Solo</h3>
+                          <p className="text-xs text-gray-500 mt-1">Personal, sin deudas ni divisiones.</p>
                         </button>
                         <button
                           type="button"
-                          onClick={() => setNewListPaymentMode('detailed')}
+                          onClick={() => setNewListType('shared')}
                           className={clsx(
-                            "flex-1 py-2 text-sm font-medium rounded-lg transition-all",
-                            newListPaymentMode === 'detailed' ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm" : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                            "p-4 rounded-2xl border-2 text-left transition-all",
+                            newListType === 'shared'
+                              ? "border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20"
+                              : "border-gray-200 dark:border-gray-700 hover:border-indigo-300"
                           )}
                         >
-                          Detallado
+                          <Users size={24} className={clsx("mb-2", newListType === 'shared' ? "text-indigo-600" : "text-gray-400")} />
+                          <h3 className={clsx("font-semibold", newListType === 'shared' ? "text-indigo-900 dark:text-indigo-100" : "text-gray-700 dark:text-gray-300")}>Compartida</h3>
+                          <p className="text-xs text-gray-500 mt-1">Grupo o pareja, divide gastos.</p>
                         </button>
                       </div>
                     </div>
-                  )}
-                </div>
-              </div>
 
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setIsWizardOpen(false)}
-                  className="flex-1 px-4 py-3 text-gray-600 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={!newListName.trim() || isSubmitting}
-                  className="flex-1 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      <span>Creando...</span>
-                    </>
-                  ) : (
-                    'Crear Lista'
-                  )}
-                </button>
-              </div>
-            </form>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                        Identidad de la lista
+                      </label>
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-3">
+                          <div className="relative group">
+                            <button
+                              type="button"
+                              className="w-12 h-12 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center text-gray-500 hover:text-indigo-600 transition-colors"
+                              onClick={(e) => {
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                const picker = document.getElementById('wizard-icon-picker');
+                                if (picker) {
+                                  picker.style.display = picker.style.display === 'none' ? 'grid' : 'none';
+                                }
+                              }}
+                            >
+                              {IconMap[newListEmoji] ? React.createElement(IconMap[newListEmoji], { size: 24 }) : <ShoppingCart size={24} />}
+                            </button>
+                            <div 
+                              id="wizard-icon-picker"
+                              className="absolute bottom-full left-0 mb-2 w-64 grid grid-cols-5 gap-2 p-3 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 z-50 hidden max-h-48 overflow-y-auto"
+                            >
+                              {LIST_ICONS.map(icon => (
+                                <button
+                                  key={icon.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setNewListEmoji(icon.id);
+                                    const picker = document.getElementById('wizard-icon-picker');
+                                    if (picker) picker.style.display = 'none';
+                                  }}
+                                  className={clsx(
+                                    "aspect-square flex items-center justify-center rounded-lg transition-all",
+                                    newListEmoji === icon.id ? "bg-indigo-600 text-white shadow-md" : "bg-gray-50 dark:bg-gray-700 text-gray-400 hover:text-gray-600"
+                                  )}
+                                >
+                                  {IconMap[icon.id] ? React.createElement(IconMap[icon.id], { size: 18 }) : <ShoppingCart size={18} />}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          <input
+                            type="text"
+                            value={newListName}
+                            onChange={(e) => setNewListName(e.target.value)}
+                            required
+                            placeholder="Nombre de la lista..."
+                            className="flex-1 bg-white dark:bg-notion-dark-gray-bg border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          />
+
+                          <div className="relative">
+                            <button
+                              type="button"
+                              className="w-10 h-10 rounded-full border-2 border-white dark:border-gray-800 shadow-sm flex items-center justify-center transition-transform hover:scale-110"
+                              style={{ backgroundColor: newListColor }}
+                              onClick={() => {
+                                const picker = document.getElementById('wizard-color-picker');
+                                if (picker) {
+                                  picker.style.display = picker.style.display === 'none' ? 'flex' : 'none';
+                                }
+                              }}
+                            >
+                              <Pipette size={14} className="text-white drop-shadow-sm" />
+                            </button>
+                            <div 
+                              id="wizard-color-picker"
+                              className="absolute bottom-full right-0 mb-2 p-3 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 z-50 hidden flex-wrap gap-2 w-48 justify-center"
+                            >
+                              {LIST_COLORS.map(c => (
+                                <button
+                                  key={c.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setNewListColor(c.textVar);
+                                    const picker = document.getElementById('wizard-color-picker');
+                                    if (picker) picker.style.display = 'none';
+                                  }}
+                                  style={{ backgroundColor: c.textVar }}
+                                  className={clsx(
+                                    "w-6 h-6 rounded-full transition-all flex items-center justify-center shadow-sm border border-black/5",
+                                    newListColor === c.textVar ? "ring-2 ring-offset-2 ring-indigo-500 scale-110" : "hover:scale-110"
+                                  )}
+                                >
+                                  {newListColor === c.textVar && <Check size={12} className="text-white" />}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3 pt-4">
+                      <button
+                        type="button"
+                        onClick={() => setIsWizardOpen(false)}
+                        className="flex-1 px-4 py-3 text-gray-600 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={!newListName.trim()}
+                        className="flex-1 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl transition-colors disabled:opacity-50"
+                      >
+                        Siguiente
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div key="phase2" className="space-y-6 animate-in fade-in slide-in-from-left-4 duration-300">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                        ¿Qué herramientas necesitas?
+                      </label>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setNewListFeatures({ ...newListFeatures, planning: !newListFeatures.planning })}
+                          className={clsx(
+                            "p-3 rounded-xl border-2 text-center transition-all flex flex-col items-center justify-center gap-2",
+                            newListFeatures.planning
+                              ? "border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20"
+                              : "border-gray-200 dark:border-gray-700 hover:border-indigo-300"
+                          )}
+                        >
+                          <Pencil size={20} className={newListFeatures.planning ? "text-indigo-600" : "text-gray-400"} />
+                          <div>
+                            <span className={clsx("block text-sm font-medium", newListFeatures.planning ? "text-indigo-900 dark:text-indigo-100" : "text-gray-700 dark:text-gray-300")}>Planificación</span>
+                            <span className="block text-[10px] text-gray-500 mt-0.5 leading-tight">Organiza ideas antes de comprar.</span>
+                          </div>
+                        </button>
+                        
+                        <button
+                          type="button"
+                          onClick={() => setNewListFeatures({ ...newListFeatures, shopping: !newListFeatures.shopping })}
+                          className={clsx(
+                            "p-3 rounded-xl border-2 text-center transition-all flex flex-col items-center justify-center gap-2",
+                            newListFeatures.shopping
+                              ? "border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20"
+                              : "border-gray-200 dark:border-gray-700 hover:border-indigo-300"
+                          )}
+                        >
+                          <ShoppingCart size={20} className={newListFeatures.shopping ? "text-indigo-600" : "text-gray-400"} />
+                          <div>
+                            <span className={clsx("block text-sm font-medium", newListFeatures.shopping ? "text-indigo-900 dark:text-indigo-100" : "text-gray-700 dark:text-gray-300")}>Compra</span>
+                            <span className="block text-[10px] text-gray-500 mt-0.5 leading-tight">Anota precios y cantidades.</span>
+                          </div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setNewListFeatures({ ...newListFeatures, packing: !newListFeatures.packing })}
+                          className={clsx(
+                            "p-3 rounded-xl border-2 text-center transition-all flex flex-col items-center justify-center gap-2",
+                            newListFeatures.packing
+                              ? "border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20"
+                              : "border-gray-200 dark:border-gray-700 hover:border-indigo-300"
+                          )}
+                        >
+                          <Luggage size={20} className={newListFeatures.packing ? "text-indigo-600" : "text-gray-400"} />
+                          <div>
+                            <span className={clsx("block text-sm font-medium", newListFeatures.packing ? "text-indigo-900 dark:text-indigo-100" : "text-gray-700 dark:text-gray-300")}>Empaque</span>
+                            <span className="block text-[10px] text-gray-500 mt-0.5 leading-tight">Verifica que no olvides nada.</span>
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                        Finanzas
+                      </label>
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Moneda Base</label>
+                          <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">
+                            <button
+                              type="button"
+                              onClick={() => setNewListCurrency('S/')}
+                              className={clsx(
+                                "flex-1 py-2 text-sm font-medium rounded-lg transition-all",
+                                newListCurrency === 'S/' ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm" : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                              )}
+                            >
+                              Soles (S/)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setNewListCurrency('$')}
+                              className={clsx(
+                                "flex-1 py-2 text-sm font-medium rounded-lg transition-all",
+                                newListCurrency === '$' ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm" : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                              )}
+                            >
+                              Dólares ($)
+                            </button>
+                          </div>
+                        </div>
+
+                        {newListType === 'shared' && (
+                          <div>
+                            <label className="block text-xs text-gray-500 mb-1">Modo de Pago</label>
+                            <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">
+                              <button
+                                type="button"
+                                onClick={() => setNewListPaymentMode('centralized')}
+                                className={clsx(
+                                  "flex-1 py-2 text-sm font-medium rounded-lg transition-all",
+                                  newListPaymentMode === 'centralized' ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm" : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                                )}
+                              >
+                                Centralizado
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setNewListPaymentMode('detailed')}
+                                className={clsx(
+                                  "flex-1 py-2 text-sm font-medium rounded-lg transition-all",
+                                  newListPaymentMode === 'detailed' ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm" : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                                )}
+                              >
+                                Detallado
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3 pt-4">
+                      <button
+                        type="button"
+                        onClick={() => setWizardPhase(1)}
+                        className="flex-1 px-4 py-3 text-gray-600 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors"
+                      >
+                        Atrás
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={isSubmitting}
+                        className="flex-1 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                      >
+                        {isSubmitting ? (
+                          <>
+                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            <span>Creando...</span>
+                          </>
+                        ) : (
+                          'Crear Lista'
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </form>
             </motion.div>
           </div>
         )}

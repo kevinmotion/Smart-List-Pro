@@ -1,10 +1,14 @@
 import React, { useState } from 'react';
 import { useStore, TemplateItem } from '../store';
-import { ChevronLeft, Edit2, Trash2, X, Check, Users, User, MapPin, Tag, Package, Plus, ChevronDown } from 'lucide-react';
+import { ChevronLeft, Edit2, Trash2, X, Check, Users, User, MapPin, Tag, Package, Plus, ChevronDown, ShoppingCart, Home, PartyPopper, Plane, Gift, Utensils, Backpack, Car, Dog, Baby, Briefcase, GraduationCap, Heart, Dumbbell, Music, Camera, Gamepad2, Coffee, Pizza, IceCream, Sun, Moon, Cloud, TreeDeciduous, Mountain, Waves, Palette, Brush, Pen, Book, Wallet, CreditCard, Smartphone, Laptop, Zap, Droplets, Flame, Hammer, Wrench, Shield, Key, Lock, Calendar } from 'lucide-react';
 import { clsx } from 'clsx';
 import { v4 as uuidv4 } from 'uuid';
 import { NOTION_COLORS } from '../constants';
 import { motion, AnimatePresence } from 'framer-motion';
+
+const IconMap: Record<string, any> = {
+  ShoppingCart, Home, PartyPopper, Plane, Gift, Utensils, Backpack, Car, Dog, Baby, Briefcase, GraduationCap, Heart, Dumbbell, Music, Camera, Gamepad2, Coffee, Pizza, IceCream, Sun, Moon, Cloud, TreeDeciduous, Mountain, Waves, Palette, Brush, Pen, Book, Users, User, Calendar, Package, Wallet, CreditCard, Smartphone, Laptop, Zap, Droplets, Flame, Hammer, Wrench, Shield, Key, Lock
+};
 
 export function TemplateDetailScreen() {
   const { templates, activeTemplateId, setActiveTemplateId, updateTemplate } = useStore();
@@ -17,20 +21,20 @@ export function TemplateDetailScreen() {
 
   // Inline Add states
   const [newItemName, setNewItemName] = useState('');
-  const [newItemEmoji, setNewItemEmoji] = useState('🛒');
+  const [newItemEmoji, setNewItemEmoji] = useState('');
   const [newItemColor, setNewItemColor] = useState('var(--color-text-blue)');
   const [newItemOrganizerId, setNewItemOrganizerId] = useState('');
 
   // Edit Form states
   const [editItemName, setEditItemName] = useState('');
-  const [editItemEmoji, setEditItemEmoji] = useState('🛒');
+  const [editItemEmoji, setEditItemEmoji] = useState('');
   const [editItemColor, setEditItemColor] = useState('var(--color-text-blue)');
   const [editItemOrganizerId, setEditItemOrganizerId] = useState('');
 
   // Item Form states
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);
   const [itemFormName, setItemFormName] = useState('');
-  const [itemFormEmoji, setItemFormEmoji] = useState('🛒');
+  const [itemFormEmoji, setItemFormEmoji] = useState('');
   const [itemFormDetails, setItemFormDetails] = useState('');
   const [itemFormPresentation, setItemFormPresentation] = useState<number | ''>('');
   const [itemFormUnit, setItemFormUnit] = useState('');
@@ -90,7 +94,7 @@ export function TemplateDetailScreen() {
 
   const resetEditForm = () => {
     setEditItemName('');
-    setEditItemEmoji('🛒');
+    setEditItemEmoji('');
     setEditItemColor('var(--color-text-blue)');
     setEditItemOrganizerId('');
     setEditingItemId(null);
@@ -150,7 +154,7 @@ export function TemplateDetailScreen() {
           ? {
               ...item,
               name: itemFormName.trim(),
-              emoji: itemFormEmoji || '🛒',
+              emoji: itemFormEmoji,
               details: itemFormDetails.trim(),
               categoryId: itemFormCategoryId,
               presentation: Number(itemFormPresentation) || 0,
@@ -163,7 +167,7 @@ export function TemplateDetailScreen() {
       const newItem: TemplateItem = {
         id: uuidv4(),
         name: itemFormName.trim(),
-        emoji: itemFormEmoji || '🛒',
+        emoji: itemFormEmoji,
         details: itemFormDetails.trim(),
         categoryId: itemFormCategoryId,
         presentation: Number(itemFormPresentation) || 0,
@@ -181,7 +185,7 @@ export function TemplateDetailScreen() {
     setIsItemModalOpen(false);
     setEditingProductId(null);
     setItemFormName('');
-    setItemFormEmoji('🛒');
+    setItemFormEmoji('');
     setItemFormDetails('');
     setItemFormPresentation('');
     setItemFormUnit('');
@@ -284,7 +288,7 @@ export function TemplateDetailScreen() {
                           className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm cursor-pointer hover:border-indigo-200 dark:hover:border-indigo-800 transition-colors group"
                         >
                           <div className="flex items-center gap-3">
-                            <span className="text-xl">{item.emoji}</span>
+                            {item.emoji && <span className="text-xl">{item.emoji}</span>}
                             <div className="flex flex-col text-left">
                               <span className="font-medium text-sm text-gray-900 dark:text-gray-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{item.name}</span>
                               {(item.presentation || item.unit || item.details) && (
@@ -374,8 +378,11 @@ export function TemplateDetailScreen() {
           className="flex items-center text-sm font-medium text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-400 transition-colors"
         >
           <ChevronLeft size={16} className="mr-1" />
-          <span className="font-bold text-gray-900 dark:text-gray-100 truncate max-w-[200px]">
-            {template.emoji} {template.name}
+          <span className="font-bold text-gray-900 dark:text-gray-100 truncate max-w-[200px] flex items-center gap-2">
+            <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: `${template.color}20`, color: template.color }}>
+              {IconMap[template.emoji] ? React.createElement(IconMap[template.emoji], { size: 14 }) : <ShoppingCart size={14} />}
+            </div>
+            {template.name}
           </span>
         </button>
       </div>
@@ -592,6 +599,7 @@ export function TemplateDetailScreen() {
                       value={itemFormEmoji}
                       onChange={(e) => setItemFormEmoji(e.target.value.slice(-2))}
                       className="w-full h-12 flex items-center justify-center bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-2xl text-center focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                      placeholder="🛒"
                     />
                   </div>
                   <div className="flex-1 flex flex-col gap-1">
@@ -766,6 +774,7 @@ export function TemplateDetailScreen() {
                         value={editItemEmoji}
                         onChange={(e) => setEditItemEmoji(e.target.value.slice(-2))}
                         className="w-12 h-12 flex items-center justify-center bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-2xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors shrink-0 text-center focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                        placeholder="🛒"
                       />
                     </div>
                   )}

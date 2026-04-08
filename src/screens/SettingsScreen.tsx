@@ -3,12 +3,12 @@ import { useStore } from '../store';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { doc, updateDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { clsx } from 'clsx';
-import { Users, User, Settings, Save, Check, ShoppingCart, Home, PartyPopper, Plane, Gift, Utensils, Backpack, Car, Dog, Baby, Briefcase, GraduationCap, Heart, Dumbbell, Music, Camera, Gamepad2, Coffee, Pizza, IceCream, Sun, Moon, Cloud, TreeDeciduous, Mountain, Waves, Palette, Brush, Pen, Book, Calendar, Package, ChevronDown, Trash2, Wallet, CreditCard, Smartphone, Laptop, Zap, Droplets, Flame, Hammer, Wrench, Shield, Key, Lock } from 'lucide-react';
+import { Users, User, Settings, Save, Check, ShoppingCart, Home, PartyPopper, Plane, Gift, Utensils, Backpack, Car, Dog, Baby, Briefcase, GraduationCap, Heart, Dumbbell, Music, Camera, Gamepad2, Coffee, Pizza, IceCream, Sun, Moon, Cloud, TreeDeciduous, Mountain, Waves, Palette, Brush, Pen, Book, ChevronDown, Trash2, Wallet, CreditCard, Smartphone, Laptop, Zap, Droplets, Flame, Hammer, Wrench, Shield, Key, Lock, Pencil, Luggage, Calendar, Package } from 'lucide-react';
 import { LIST_COLORS, LIST_ICONS, NOTION_COLORS } from '../constants';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const IconMap: Record<string, any> = {
-  ShoppingCart, Home, PartyPopper, Plane, Gift, Utensils, Backpack, Car, Dog, Baby, Briefcase, GraduationCap, Heart, Dumbbell, Music, Camera, Gamepad2, Coffee, Pizza, IceCream, Sun, Moon, Cloud, TreeDeciduous, Mountain, Waves, Palette, Brush, Pen, Book, Users, User, Calendar, Package, Wallet, CreditCard, Smartphone, Laptop, Zap, Droplets, Flame, Hammer, Wrench, Shield, Key, Lock
+  ShoppingCart, Home, PartyPopper, Plane, Gift, Utensils, Backpack, Car, Dog, Baby, Briefcase, GraduationCap, Heart, Dumbbell, Music, Camera, Gamepad2, Coffee, Pizza, IceCream, Sun, Moon, Cloud, TreeDeciduous, Mountain, Waves, Palette, Brush, Pen, Book, Users, User, Pencil, Luggage, Wallet, CreditCard, Smartphone, Laptop, Zap, Droplets, Flame, Hammer, Wrench, Shield, Key, Lock, Calendar, Package
 };
 
 export const SettingsScreen = () => {
@@ -253,7 +253,7 @@ export const SettingsScreen = () => {
                   ? "bg-indigo-600 text-white shadow-sm scale-110" 
                   : "bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500"
               )}>
-                <Package size={18} />
+                <Luggage size={18} />
               </div>
               <span className="font-bold text-gray-900 dark:text-gray-100">Módulos</span>
             </div>
@@ -280,7 +280,7 @@ export const SettingsScreen = () => {
                         : "border-gray-200 dark:border-gray-700 hover:border-indigo-300"
                     )}
                   >
-                    <Calendar size={20} className={features.planning ? "text-indigo-600" : "text-gray-400"} />
+                    <Pencil size={20} className={features.planning ? "text-indigo-600" : "text-gray-400"} />
                     <div>
                       <span className={clsx("block text-sm font-medium", features.planning ? "text-indigo-900 dark:text-indigo-100" : "text-gray-700 dark:text-gray-300")}>Planificación</span>
                       <span className="block text-[10px] text-gray-500 mt-0.5 leading-tight">Organiza ideas.</span>
@@ -314,7 +314,7 @@ export const SettingsScreen = () => {
                         : "border-gray-200 dark:border-gray-700 hover:border-indigo-300"
                     )}
                   >
-                    <Package size={20} className={features.packing ? "text-indigo-600" : "text-gray-400"} />
+                    <Luggage size={20} className={features.packing ? "text-indigo-600" : "text-gray-400"} />
                     <div>
                       <span className={clsx("block text-sm font-medium", features.packing ? "text-indigo-900 dark:text-indigo-100" : "text-gray-700 dark:text-gray-300")}>Empaque</span>
                       <span className="block text-[10px] text-gray-500 mt-0.5 leading-tight">Verifica todo.</span>
