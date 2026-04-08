@@ -18,11 +18,13 @@ export type Tag = { id: string; name: string; emoji: string; order?: number };
 export type Alternative = {
   id: string;
   name: string;
+  emoji?: string | null;
   price: number;
   quantity: number;
   unit: string;
   presentation?: number | null;
   photoId?: string | null;
+  details?: string | null;
   currency?: string | null;
 };
 

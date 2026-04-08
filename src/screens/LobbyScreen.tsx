@@ -270,8 +270,32 @@ export const LobbyScreen = () => {
   });
   const [newListCurrency, setNewListCurrency] = useState('S/');
   const [newListPaymentMode, setNewListPaymentMode] = useState<'detailed' | 'centralized'>('detailed');
-  const [listToDelete, setListToDelete] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [listStats, setListStats] = useState<Record<string, { total: number, bought: number }>>({});
+
+  useEffect(() => {
+    if (!lists.length) return;
+    
+    const unsubscribes = lists.map(list => {
+      const q = query(collection(db, 'lists', list.id, 'items'));
+      return onSnapshot(q, (snapshot) => {
+        let total = 0;
+        let bought = 0;
+        snapshot.forEach(doc => {
+          total++;
+          if (doc.data().isBought) bought++;
+        });
+        setListStats(prev => ({ ...prev, [list.id]: { total, bought } }));
+      }, (error) => {
+        console.error("Error fetching items for list", list.id, error);
+      });
+    });
+
+    return () => {
+      unsubscribes.forEach(unsub => unsub());
+    };
+  }, [lists]);
 
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
   const isLongPressTriggered = useRef(false);
@@ -439,16 +463,6 @@ export const LobbyScreen = () => {
     setActiveListId(listId);
   };
 
-  const handleDeleteList = async () => {
-    if (!listToDelete) return;
-    try {
-      await deleteDoc(doc(db, 'lists', listToDelete));
-      setListToDelete(null);
-    } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `lists/${listToDelete}`);
-    }
-  };
-
   const formatDate = (timestamp: any) => {
     if (!timestamp) return '';
     
@@ -466,77 +480,157 @@ export const LobbyScreen = () => {
     return new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }).format(date);
   };
 
+  const filteredLists = lists.filter(list => 
+    list.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const activeLists = filteredLists.filter(list => {
+    const stats = listStats[list.id];
+    if (!stats) return true;
+    if (stats.total === 0) return true;
+    return stats.bought < stats.total;
+  });
+
+  const completedLists = filteredLists.filter(list => {
+    const stats = listStats[list.id];
+    if (!stats) return false;
+    return stats.total > 0 && stats.bought === stats.total;
+  });
+
+  const renderListCard = (list: SmartList) => {
+    const stats = listStats[list.id];
+    const progressPercentage = stats && stats.total > 0 ? Math.round((stats.bought / stats.total) * 100) : 0;
+    const listColor = list.color || 'var(--color-text-default)';
+
+    return (
+      <div key={list.id} className="relative overflow-hidden rounded-3xl group w-[160px] sm:w-[200px] snap-start shrink-0 h-[150px]">
+        {/* Card */}
+        <div
+          className="relative bg-white dark:bg-notion-dark-gray-bg border-2 rounded-3xl p-4 shadow-sm hover:shadow-md transition-all flex flex-col h-full cursor-pointer overflow-hidden"
+          style={{ 
+            borderColor: listColor,
+          }}
+          onClick={() => handleSelectList(list.id)}
+        >
+          <div className="relative z-10 flex flex-col h-full">
+            {/* Row 1: Icon & Type */}
+            <div className="flex items-start justify-between mb-2">
+              <div 
+                className="w-10 h-10 rounded-xl flex items-center justify-center shadow-sm" 
+                style={{ backgroundColor: listColor }}
+              >
+                {IconMap[list.emoji] ? React.createElement(IconMap[list.emoji], { size: 20, className: "text-white" }) : <ShoppingCart size={20} className="text-white" />}
+              </div>
+              <div className="p-1.5 bg-gray-50 dark:bg-gray-800 rounded-lg" style={{ color: listColor }}>
+                {list.type === 'shared' ? <Users size={14} /> : <User size={14} />}
+              </div>
+            </div>
+
+            {/* Row 2: List name */}
+            <div className="flex-1 min-w-0 flex flex-col justify-center">
+              <h2 className="text-sm font-bold text-gray-900 dark:text-gray-100 line-clamp-2 leading-tight">
+                {list.name}
+              </h2>
+            </div>
+
+            {/* Row 3: Progress and Date */}
+            <div className="mt-2 flex flex-col gap-1.5">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-medium text-gray-500 dark:text-gray-400 truncate pr-2">
+                  {list.createdAt ? formatDate(list.createdAt) : 'Nueva'}
+                </p>
+                <span className="text-[10px] font-bold shrink-0" style={{ color: listColor }}>
+                  {stats ? `${stats.bought}/${stats.total}` : '0/0'}
+                </span>
+              </div>
+              <div className="h-1.5 w-full bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                <div 
+                  className="h-full rounded-full transition-all duration-500 ease-out"
+                  style={{ 
+                    width: `${progressPercentage}%`,
+                    backgroundColor: listColor
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="flex flex-col h-full bg-notion-bg dark:bg-notion-dark-bg p-6 relative overflow-hidden">
-      <div className="mb-8 mt-4 flex justify-between items-start">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Mis Listas</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-2">
-            Hola, {currentUser?.displayName || currentUser?.email?.split('@')[0] || 'Usuario'}
-          </p>
+      {/* Header */}
+      <div className="mb-4 mt-0 text-left">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">
+          Hola, {currentUser?.displayName?.split(' ')[0] || currentUser?.email?.split('@')[0] || 'Usuario'}
+        </h1>
+      </div>
+
+      {/* Search */}
+      <div className="mb-6 max-w-md mx-auto w-full">
+        <div className="relative group">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Buscar listas..."
+            className="w-full bg-white dark:bg-notion-dark-gray-bg border border-gray-200 dark:border-gray-800 rounded-xl h-11 pl-10 pr-4 text-sm font-medium placeholder-gray-400 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:text-gray-100 shadow-sm transition-all"
+          />
+          <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-500 transition-colors">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+          </div>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto space-y-4 pb-32">
+      <div className="flex-1 overflow-y-auto pb-32 -mx-6 px-6">
         {lists.length === 0 ? (
           <div className="text-center py-12 text-gray-500 dark:text-gray-400">
             <p>No tienes ninguna lista todavía.</p>
             <p className="mt-2 text-sm">Toca el botón + para crear una.</p>
           </div>
         ) : (
-          lists.map((list) => (
-            <div key={list.id} className="relative overflow-hidden rounded-2xl group">
-              {/* Delete Background */}
-              <div className="absolute inset-0 bg-red-500 flex items-center justify-end px-6 rounded-2xl">
-                <Trash2 className="text-white" size={24} />
+          <div className="space-y-8">
+            {/* Active Lists */}
+            {activeLists.length > 0 && (
+              <section>
+                <div className="flex items-end justify-between mb-4 px-1">
+                  <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 tracking-tight">Listas Activas</h2>
+                  <button className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 transition-colors">
+                    Ver todo
+                  </button>
+                </div>
+                <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-4 -mx-6 px-6 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                  {activeLists.map(renderListCard)}
+                </div>
+              </section>
+            )}
+
+            {/* Completed Lists */}
+            {completedLists.length > 0 && (
+              <section>
+                <div className="flex items-end justify-between mb-4 px-1">
+                  <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 tracking-tight">Historial</h2>
+                  <button className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 transition-colors">
+                    Ver todo
+                  </button>
+                </div>
+                <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-4 -mx-6 px-6 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                  {completedLists.map(renderListCard)}
+                </div>
+              </section>
+            )}
+
+            {filteredLists.length === 0 && searchQuery && (
+              <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                <p>No se encontraron listas que coincidan con tu búsqueda.</p>
               </div>
-              
-              {/* Draggable Card */}
-              <motion.div
-                drag="x"
-                dragConstraints={{ left: -100, right: 0 }}
-                onDragEnd={(e, info) => {
-                  if (info.offset.x < -50) {
-                    setListToDelete(list.id);
-                  }
-                }}
-                className="relative bg-white dark:bg-notion-dark-gray-bg border border-gray-200 dark:border-gray-800 rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow flex items-center justify-between cursor-pointer"
-                onClick={() => handleSelectList(list.id)}
-              >
-                <div className="flex items-center gap-4">
-                  <div className={clsx("w-12 h-12 rounded-xl flex items-center justify-center shadow-inner", !list.color.startsWith('var') && list.color)} style={list.color.startsWith('var') ? { backgroundColor: list.color } : {}}>
-                    {IconMap[list.emoji] ? React.createElement(IconMap[list.emoji], { size: 24, className: "text-white" }) : <ShoppingCart size={24} className="text-white" />}
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-                      {list.name}
-                      {list.type === 'shared' ? (
-                        <Users size={14} className="text-indigo-500" />
-                      ) : (
-                        <User size={14} className="text-gray-400" />
-                      )}
-                    </h2>
-                    <div className="flex items-center gap-2 mt-1">
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
-                        {list.type === 'shared' ? 'Lista Compartida' : 'Lista Personal'}
-                      </p>
-                      {list.createdAt && (
-                        <>
-                          <span className="text-gray-300 dark:text-gray-600">•</span>
-                          <p className="text-xs text-gray-400 dark:text-gray-500">
-                            {formatDate(list.createdAt)}
-                          </p>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <div className="text-gray-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                  <ChevronRight size={24} />
-                </div>
-              </motion.div>
-            </div>
-          ))
+            )}
+          </div>
         )}
       </div>
 
@@ -929,39 +1023,6 @@ export const LobbyScreen = () => {
                   </div>
                 )}
               </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Delete Confirmation Modal */}
-      <AnimatePresence>
-        {listToDelete && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white dark:bg-notion-dark-bg w-full max-w-sm rounded-3xl p-6 shadow-2xl"
-            >
-              <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">¿Eliminar lista?</h3>
-              <p className="text-gray-500 dark:text-gray-400 mb-6">
-                Esta acción no se puede deshacer. Todos los datos de la lista se perderán.
-              </p>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setListToDelete(null)}
-                  className="flex-1 px-4 py-3 text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleDeleteList}
-                  className="flex-1 px-4 py-3 bg-red-600 hover:bg-red-700 text-white font-medium rounded-xl transition-colors"
-                >
-                  Eliminar
-                </button>
-              </div>
             </motion.div>
           </div>
         )}

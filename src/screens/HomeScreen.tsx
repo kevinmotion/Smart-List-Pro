@@ -9,6 +9,7 @@ import { v4 as uuidv4 } from "uuid";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Plus,
+  Minus,
   Image as ImageIcon,
   Camera,
   X,
@@ -106,10 +107,14 @@ export const HomeScreen = () => {
 
   // Alternative flow states
   const [isComparing, setIsComparing] = useState(false);
+  const [selectedAltId, setSelectedAltId] = useState<string>("main");
   const [isAddingAlternative, setIsAddingAlternative] = useState(false);
+  const [editingAltId, setEditingAltId] = useState<string | null>(null);
   const [altName, setAltName] = useState("");
-
-  // Import Bridge states
+  const [altEmoji, setAltEmoji] = useState("");
+  const [altPresentation, setAltPresentation] = useState("");
+  const [altDetails, setAltDetails] = useState("");
+  const [altPhoto, setAltPhoto] = useState<string | null>(null);
   const [masterLocationId, setMasterLocationId] = useState<string>("");
   const [showMasterLocationDropdown, setShowMasterLocationDropdown] = useState(false);
   const masterLocationRef = useRef<HTMLDivElement>(null);
@@ -131,7 +136,6 @@ export const HomeScreen = () => {
   const [altPrice, setAltPrice] = useState("");
   const [altQuantity, setAltQuantity] = useState("1");
   const [altUnit, setAltUnit] = useState("un");
-  const [altPhoto, setAltPhoto] = useState<string | null>(null);
   const [showUnitChips, setShowUnitChips] = useState(false);
   const [showAltUnitChips, setShowAltUnitChips] = useState(false);
   const [showTagSelector, setShowTagSelector] = useState(false);
@@ -415,6 +419,7 @@ export const HomeScreen = () => {
     setAltQuantity("1");
     setAltUnit("un");
     setAltPhoto(null);
+    setSelectedAltId("main");
   };
 
   const handleEditItem = (item: Item) => {
@@ -434,6 +439,8 @@ export const HomeScreen = () => {
     setPackedById(item.packedById || "");
     setAlternatives(item.alternatives || []);
     setFormGroupId(item.groupId);
+    setSelectedAltId("main");
+    
     setIsAdding(true);
   };
 
@@ -445,53 +452,115 @@ export const HomeScreen = () => {
     } else if (altPhoto) {
       finalPhotoId = altPhoto;
     }
-    const qB = parseFloat(altQuantity) || 1;
     const pB = parseFloat(altPrice) || 0;
-    const newAlt: Alternative = {
-      id: uuidv4(),
-      name: altName,
-      price: pB,
-      quantity: qB,
-      unit: altUnit,
-      currency: currency || null,
-      photoId: finalPhotoId,
-    };
-    setAlternatives([...alternatives, newAlt]);
+    
+    if (editingAltId) {
+      // Update existing alternative
+      setAlternatives(prev => prev.map(a => a.id === editingAltId ? {
+        ...a,
+        name: altName,
+        emoji: altEmoji || null,
+        price: pB,
+        unit: altUnit,
+        presentation: altPresentation ? parseFloat(altPresentation) : null,
+        photoId: finalPhotoId,
+        details: altDetails || null,
+      } : a));
+      
+      // If the edited alternative is the currently selected one, update form state too
+      if (selectedAltId === editingAltId) {
+        setName(altName);
+        setEmoji(altEmoji || "");
+        setPrice(pB > 0 ? pB.toString() : "");
+        setUnit(altUnit);
+        setPresentation(altPresentation);
+        setFormPhoto(finalPhotoId);
+        setDetails(altDetails);
+      }
+    } else {
+      // Create new alternative
+      const newAlt: Alternative = {
+        id: uuidv4(),
+        name: altName,
+        emoji: altEmoji || null,
+        price: pB,
+        quantity: 1, // Default to 1 as it's no longer configurable
+        unit: altUnit,
+        presentation: altPresentation ? parseFloat(altPresentation) : null,
+        currency: currency || null,
+        photoId: finalPhotoId,
+        details: altDetails || null,
+      };
+      setAlternatives([...alternatives, newAlt]);
+    }
+
     setIsAddingAlternative(false);
+    setEditingAltId(null);
     setAltName("");
+    setAltEmoji("");
     setAltPrice("");
     setAltQuantity("1");
     setAltUnit("un");
+    setAltPresentation("");
+    setAltDetails("");
     setAltPhoto(null);
   };
 
-  const handleSwapAlternative = (alt: Alternative) => {
-    const qA = parseFloat(quantity) || 1;
-    const pA = parseFloat(price) || 0;
-    const currentMainAsAlt: Alternative = {
-      id: uuidv4(),
+  const handleSelectAlternative = (altId: string) => {
+    if (altId === selectedAltId) return;
+
+    // 1. Save current form state to the previously selected item
+    const currentData = {
       name,
-      price: pA,
-      quantity: qA,
+      emoji: emoji || null,
+      price: parseFloat(price) || 0,
+      quantity: parseFloat(quantity) || 1,
       unit,
+      presentation: presentation ? parseFloat(presentation) : null,
       currency: currency || null,
       photoId: formPhoto || null,
+      details: details || null,
     };
 
-    setName(alt.name);
-    setPrice(alt.price > 0 ? alt.price.toString() : "");
-    setQuantity(alt.quantity.toString());
-    setUnit(alt.unit);
-    setCurrency(alt.currency || "S/");
-    setFormPhoto(alt.photoId || null);
+    if (selectedAltId === "main") {
+      // If we're switching from "main", we MUST ensure the current "main" data is preserved.
+      // We'll use a special stable ID for the "original" configuration to avoid duplicates.
+      const originalId = "original-config";
+      const existingOriginal = alternatives.find(a => a.id === originalId);
+      
+      if (existingOriginal) {
+        // Update existing original backup
+        setAlternatives(prev => prev.map(a => a.id === originalId ? { ...a, ...currentData, id: originalId } : a));
+      } else {
+        // Create new original backup
+        setAlternatives(prev => [...prev, { ...currentData, id: originalId }]);
+      }
+    } else {
+      setAlternatives(prev => prev.map(a => a.id === selectedAltId ? { ...a, ...currentData } : a));
+    }
 
-    setAlternatives([
-      ...alternatives.filter((a) => a.id !== alt.id),
-      currentMainAsAlt,
-    ]);
+    // 2. Load new item's data into form state
+    const alt = alternatives.find((a) => a.id === altId);
+    if (alt) {
+      setName(alt.name);
+      setEmoji(alt.emoji || "");
+      setPrice(alt.price > 0 ? alt.price.toString() : "");
+      setQuantity(alt.quantity.toString());
+      setUnit(alt.unit);
+      setPresentation(alt.presentation ? alt.presentation.toString() : "");
+      setCurrency(alt.currency || "S/");
+      setFormPhoto(alt.photoId || null);
+      setDetails(alt.details || "");
+    }
+
+    // 3. Update selection
+    setSelectedAltId(altId);
   };
 
   const handleRemoveAlternative = (id: string) => {
+    if (selectedAltId === id) {
+      handleSelectAlternative("main");
+    }
     const altToRemove = alternatives.find((a) => a.id === id);
     if (altToRemove && altToRemove.photoId) {
       // Limpiar la foto de la memoria si el usuario borra la alternativa del formulario
@@ -525,6 +594,19 @@ export const HomeScreen = () => {
     const p = parseFloat(price) || 0;
     const unitPrice = p;
 
+    let finalAlternatives = [...alternatives];
+    if (selectedAltId !== "main") {
+      // The current form state is an alternative, so it shouldn't be in the alternatives list.
+      // The "original" configuration (if swapped) is already in the alternatives list 
+      // thanks to handleSelectAlternative.
+      finalAlternatives = alternatives.filter((a) => a.id !== selectedAltId);
+    }
+    
+    // Replace 'original-config' with a real UUID before saving
+    finalAlternatives = finalAlternatives.map(a => 
+      a.id === "original-config" ? { ...a, id: uuidv4() } : a
+    );
+
     const itemData = {
       name,
       price: unitPrice,
@@ -540,7 +622,7 @@ export const HomeScreen = () => {
       details: details || null,
       paidById: paidById || null,
       packedById: packedById || null,
-      alternatives,
+      alternatives: finalAlternatives,
     };
 
     if (editingItemId) {
@@ -557,6 +639,13 @@ export const HomeScreen = () => {
     if (!file) return;
     const compressed = await compressImage(file);
     setFormPhoto(compressed);
+  };
+
+  const handleAltPhotoCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const compressed = await compressImage(file);
+    setAltPhoto(compressed);
   };
 
   if (groups.length === 0 && !isSolo) {
@@ -614,57 +703,79 @@ export const HomeScreen = () => {
           </div>
         )}
 
-        {listMode === "shopping" && locations.length > 0 && (
-          <div className="px-4 py-2 bg-gray-50/80 dark:bg-gray-900/40 border-t border-gray-100 dark:border-gray-800/50 flex items-center justify-between backdrop-blur-sm relative">
-            <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-              <MapPin size={13} className="opacity-70" />
-              <span className="text-[10px] font-bold uppercase tracking-widest">Comprando en:</span>
-            </div>
-            <div className="relative" ref={masterLocationRef}>
-              <button
-                onClick={() => setShowMasterLocationDropdown(!showMasterLocationDropdown)}
-                className="flex items-center gap-1.5 text-xs font-bold text-gray-700 dark:text-gray-200 focus:outline-none cursor-pointer"
-              >
-                <span>{locations.find(l => l.id === masterLocationId)?.name || "Cualquier local"}</span>
-                <ChevronDown size={12} className={clsx("text-gray-400 transition-transform", showMasterLocationDropdown && "rotate-180")} />
-              </button>
-
-              {showMasterLocationDropdown && (
-                <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-notion-dark-bg rounded-xl shadow-xl border border-gray-100 dark:border-gray-800 p-2 z-50 flex flex-col gap-1.5 animate-in fade-in slide-in-from-top-2 duration-200">
-                  <button
-                    onClick={() => {
-                      setMasterLocationId("");
-                      setShowMasterLocationDropdown(false);
-                    }}
+        {listMode === "shopping" && (
+          <div className="px-4 py-2 bg-gray-50/80 dark:bg-gray-900/40 border-t border-gray-100 dark:border-gray-800/50 flex items-center justify-between backdrop-blur-sm relative gap-4">
+            {/* Progress Bar (Continuous) */}
+            <div className="flex-1 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+              {(() => {
+                const totalItems = groupItems.length;
+                if (totalItems === 0) return null;
+                
+                const boughtCount = groupItems.filter(i => i.isBought).length;
+                const progressPercentage = Math.round((boughtCount / totalItems) * 100);
+                const isAllDone = progressPercentage === 100;
+                
+                return (
+                  <div 
                     className={clsx(
-                      "w-full text-left px-3 py-1.5 rounded-full text-[11px] font-bold transition-all",
-                      masterLocationId === ""
-                        ? "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300"
-                        : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+                      "h-full transition-all duration-500 ease-out rounded-full",
+                      isAllDone ? "bg-green-500" : "bg-cyan-500"
                     )}
-                  >
-                    Cualquier local
-                  </button>
-                  {locations.map((loc) => (
+                    style={{ width: `${progressPercentage}%` }}
+                  />
+                );
+              })()}
+            </div>
+
+            {/* Location Dropdown */}
+            {locations.length > 0 && (
+              <div className="relative shrink-0" ref={masterLocationRef}>
+                <button
+                  onClick={() => setShowMasterLocationDropdown(!showMasterLocationDropdown)}
+                  className="flex items-center gap-1.5 text-xs font-bold text-gray-700 dark:text-gray-200 focus:outline-none cursor-pointer"
+                >
+                  <MapPin size={13} className="text-gray-400" />
+                  <span>{locations.find(l => l.id === masterLocationId)?.name || "Cualquier local"}</span>
+                  <ChevronDown size={12} className={clsx("text-gray-400 transition-transform", showMasterLocationDropdown && "rotate-180")} />
+                </button>
+
+                {showMasterLocationDropdown && (
+                  <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-notion-dark-bg rounded-xl shadow-xl border border-gray-100 dark:border-gray-800 p-2 z-50 flex flex-col gap-1.5 animate-in fade-in slide-in-from-top-2 duration-200">
                     <button
-                      key={loc.id}
                       onClick={() => {
-                        setMasterLocationId(loc.id);
+                        setMasterLocationId("");
                         setShowMasterLocationDropdown(false);
                       }}
                       className={clsx(
-                        "w-full text-left px-3 py-1.5 rounded-full text-[11px] font-bold transition-all truncate",
-                        masterLocationId === loc.id
+                        "w-full text-left px-3 py-1.5 rounded-full text-[11px] font-bold transition-all",
+                        masterLocationId === ""
                           ? "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300"
                           : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
                       )}
                     >
-                      {loc.name}
+                      Cualquier local
                     </button>
-                  ))}
-                </div>
-              )}
-            </div>
+                    {locations.map((loc) => (
+                      <button
+                        key={loc.id}
+                        onClick={() => {
+                          setMasterLocationId(loc.id);
+                          setShowMasterLocationDropdown(false);
+                        }}
+                        className={clsx(
+                          "w-full text-left px-3 py-1.5 rounded-full text-[11px] font-bold transition-all truncate",
+                          masterLocationId === loc.id
+                            ? "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300"
+                            : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+                        )}
+                      >
+                        {loc.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -1120,8 +1231,8 @@ export const HomeScreen = () => {
 
       {/* Details Modal */}
       {showDetailsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-notion-dark-bg w-full max-w-sm rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95">
+        <div className="fixed inset-0 z-50 flex justify-center bg-black/50 backdrop-blur-sm items-start">
+          <div className="bg-white dark:bg-notion-dark-bg w-full max-w-md rounded-b-3xl shadow-xl overflow-hidden animate-in slide-in-from-top-full relative">
             <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-800">
               <h3 className="text-lg font-semibold">Añadir detalles</h3>
               <button
@@ -1137,13 +1248,13 @@ export const HomeScreen = () => {
                 value={details}
                 onChange={(e) => setDetails(e.target.value)}
                 rows={4}
-                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500 resize-none"
+                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl px-4 py-3 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-cyan-500 resize-none"
                 placeholder="Añadir marca, pasillo, sabor u observaciones..."
               />
               <button
                 type="button"
                 onClick={() => setShowDetailsModal(false)}
-                className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-medium rounded-xl px-4 py-3 mt-4 transition-colors"
+                className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-medium rounded-full px-4 py-3 mt-4 transition-colors"
               >
                 Listo
               </button>
@@ -1154,31 +1265,31 @@ export const HomeScreen = () => {
 
       {/* Add Item Modal */}
       {isAdding && (
-        <div className={clsx("fixed inset-0 z-40 flex justify-center bg-black/50 backdrop-blur-sm", editingItemId ? "items-center p-4" : "items-start")}>
-          <div className={clsx("bg-white dark:bg-notion-dark-bg w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in relative", editingItemId ? "rounded-3xl zoom-in-95" : "rounded-b-3xl slide-in-from-top-full")}>
+        <div className={clsx("fixed inset-0 z-40 flex justify-center bg-black/50 backdrop-blur-sm", editingItemId ? "items-start" : "items-start")}>
+          <div className={clsx("bg-white dark:bg-notion-dark-bg w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[100vh] animate-in relative", editingItemId ? "rounded-b-3xl" : "rounded-b-3xl slide-in-from-top-full")}>
             <button
               onClick={resetForm}
-              className="absolute top-3 right-3 p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 z-10 bg-gray-100 dark:bg-gray-800 rounded-full"
+              className="absolute top-3 right-3 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 z-10 bg-gray-100 dark:bg-gray-800 rounded-full"
             >
-              <X size={16} />
+              <X size={14} />
             </button>
 
-            <div className="overflow-y-auto p-5 space-y-5 pt-10">
+            <div className="overflow-y-auto p-4 space-y-4 pt-8">
               {!isComparing ? (
                 <>
                   {/* Fila 1: Concepto */}
-                  <div className="flex gap-3 items-end relative">
+                  <div className="flex gap-2 items-end relative">
                     <div className="flex-1">
-                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                      <label className="block text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-0.5 ml-2">
                         Concepto
                       </label>
-                      <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl h-12 px-2">
+                      <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full h-10 px-3">
                         <input
                           type="text"
                           maxLength={2}
                           value={emoji}
                           onChange={(e) => setEmoji(e.target.value)}
-                          className="w-8 h-8 bg-transparent text-center text-xl focus:outline-none placeholder:opacity-50 grayscale placeholder:grayscale-0"
+                          className="w-6 h-6 bg-transparent text-center text-lg focus:outline-none placeholder:opacity-50 grayscale placeholder:grayscale-0"
                           placeholder="🛒"
                         />
                         <input
@@ -1195,30 +1306,30 @@ export const HomeScreen = () => {
                     <button
                       type="button"
                       onClick={() => setShowDetailsModal(true)}
-                      className="w-12 h-12 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center text-gray-500 hover:text-cyan-600 transition-colors shrink-0"
+                      className="w-10 h-10 rounded-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center text-gray-500 hover:text-cyan-600 transition-colors shrink-0"
                     >
-                      <Info size={20} />
+                      <Info size={18} />
                     </button>
                   </div>
 
                   {/* Fila 2: Precio y Categoría */}
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <div className="flex justify-between items-end mb-1">
-                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">
+                      <div className="flex justify-between items-end mb-0.5 ml-2">
+                        <label className="block text-[10px] font-medium text-gray-500 dark:text-gray-400">
                           Monto
                         </label>
                         {activeGroup && parseFloat(price || "0") > 0 && (
-                          <span className="text-[10px] text-gray-400 font-medium">
+                          <span className="text-[9px] text-gray-400 font-medium mr-2">
                             Cuota: {currency || "S/"} {((parseFloat(price) * parseFloat(quantity || "1")) / activeGroup.peopleIds.length).toFixed(2)}
                           </span>
                         )}
                       </div>
-                      <div className="relative h-12">
+                      <div className="relative h-10">
                         <button
                           type="button"
                           onClick={() => setCurrency(currency === "S/" ? "$" : "S/")}
-                          className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-bold hover:text-cyan-600 focus:outline-none text-sm"
+                          className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold hover:text-cyan-600 focus:outline-none text-xs"
                         >
                           {currency || "S/"}
                         </button>
@@ -1227,19 +1338,19 @@ export const HomeScreen = () => {
                           inputMode="decimal"
                           value={price}
                           onChange={(e) => handleNumberInput(e.target.value, setPrice)}
-                          className="w-full h-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl pl-8 pr-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          className="w-full h-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full pl-10 pr-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
                           placeholder="0.00"
                         />
                       </div>
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                      <label className="block text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-0.5 ml-2">
                         Categoría
                       </label>
                       <div className="relative">
                         <button
                           onClick={() => setShowTagSelector(!showTagSelector)}
-                          className="w-full h-12 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                          className="w-full h-10 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full px-4 flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-cyan-500"
                         >
                           <span className="truncate text-sm font-medium">
                             {tags.find((t) => t.id === tagId)?.emoji} {tags.find((t) => t.id === tagId)?.name || "Sin categoría"}
@@ -1275,27 +1386,47 @@ export const HomeScreen = () => {
                   </div>
 
                   {/* Fila 3: Cantidad, Presentación, Unidad */}
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-3 gap-2">
                     <div>
-                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                      <label className="block text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-0.5 ml-2">
                         Cantidad
                       </label>
-                      <div className="h-12 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
+                      <div className="h-10 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full flex items-center px-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const val = parseFloat(quantity || "0");
+                            if (val > 1) setQuantity((val - 1).toString());
+                          }}
+                          className="w-8 h-8 flex items-center justify-center bg-white dark:bg-gray-700 rounded-full text-gray-500 hover:text-cyan-600 transition-colors shadow-sm"
+                        >
+                          <Minus size={14} />
+                        </button>
                         <input
                           required
                           type="text"
                           inputMode="decimal"
                           value={quantity}
                           onChange={(e) => handleNumberInput(e.target.value, setQuantity)}
-                          className="w-full h-full bg-transparent text-center font-semibold text-sm focus:outline-none"
+                          className="flex-1 w-full bg-transparent text-center font-bold text-sm focus:outline-none"
                         />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const val = parseFloat(quantity || "0");
+                            setQuantity((val + 1).toString());
+                          }}
+                          className="w-8 h-8 flex items-center justify-center bg-white dark:bg-gray-700 rounded-full text-gray-500 hover:text-cyan-600 transition-colors shadow-sm"
+                        >
+                          <Plus size={14} />
+                        </button>
                       </div>
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                      <label className="block text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-0.5 ml-2">
                         Presentación
                       </label>
-                      <div className="h-12 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
+                      <div className="h-10 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full overflow-hidden">
                         <input
                           required
                           type="text"
@@ -1307,13 +1438,13 @@ export const HomeScreen = () => {
                       </div>
                     </div>
                     <div className="relative">
-                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                      <label className="block text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-0.5 ml-2">
                         Unidad
                       </label>
                       <button
                         type="button"
                         onClick={() => setShowUnitChips(!showUnitChips)}
-                        className="w-full h-12 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-1 font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 flex items-center justify-center text-sm"
+                        className="w-full h-10 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full px-1 font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 flex items-center justify-center text-sm"
                       >
                         {unit}
                       </button>
@@ -1345,7 +1476,7 @@ export const HomeScreen = () => {
                   {/* Fila 4: Local de Compra */}
                   {listMode !== "planning" && (
                     <div>
-                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                      <label className="block text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-0.5 ml-2">
                         Local de Compra
                       </label>
                       <div className="relative">
@@ -1353,7 +1484,7 @@ export const HomeScreen = () => {
                           onClick={() =>
                             setShowLocationSelector(!showLocationSelector)
                           }
-                          className="w-full h-12 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          className="w-full h-10 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full px-4 flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         >
                           <div className="flex items-center gap-2 overflow-hidden">
                             <MapPin
@@ -1417,10 +1548,10 @@ export const HomeScreen = () => {
 
                   {/* Fila 5: Grupo de Pago y Pagante/Empacador (Solo si no es solo) */}
                   {!isSolo && listMode !== "planning" && (
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-2 gap-2">
                       {/* Grupo de Pago */}
                       <div>
-                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                        <label className="block text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-0.5 ml-2">
                           Grupo de Pago
                         </label>
                         <div className="relative">
@@ -1428,7 +1559,7 @@ export const HomeScreen = () => {
                             onClick={() =>
                               setShowGroupSelector(!showGroupSelector)
                             }
-                            className="w-full h-12 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            className="w-full h-10 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full px-4 flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-indigo-500"
                           >
                             <div className="flex items-center gap-2 overflow-hidden">
                               <Users
@@ -1478,7 +1609,7 @@ export const HomeScreen = () => {
                       {/* Pagado por (Shopping Mode) */}
                       {listMode === "shopping" && (
                         <div>
-                          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                          <label className="block text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-0.5 ml-2">
                             Pagado por
                           </label>
                           <div className="relative">
@@ -1486,7 +1617,7 @@ export const HomeScreen = () => {
                               onClick={() =>
                                 setShowPayerSelector(!showPayerSelector)
                               }
-                              className="w-full h-12 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                              className="w-full h-10 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full px-4 flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-cyan-500"
                             >
                               <div className="flex items-center gap-2 overflow-hidden">
                                 <Wallet
@@ -1554,7 +1685,7 @@ export const HomeScreen = () => {
                       {/* Empacado por (Packing Mode) */}
                       {listMode === "packing" && (
                         <div>
-                          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                          <label className="block text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-0.5 ml-2">
                             Empacado por
                           </label>
                           <div className="relative">
@@ -1562,7 +1693,7 @@ export const HomeScreen = () => {
                               onClick={() =>
                                 setShowPackerSelector(!showPackerSelector)
                               }
-                              className="w-full h-12 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-3 flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                              className="w-full h-10 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full px-4 flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             >
                               <div className="flex items-center gap-2 overflow-hidden">
                                 <Luggage
@@ -1628,55 +1759,57 @@ export const HomeScreen = () => {
                   )}
 
                   {/* Acciones Adicionales */}
-                  {listMode !== "planning" && (
-                    <div className="grid grid-cols-2 gap-3 pt-2">
-                      <div className="relative">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          capture="environment"
-                          onChange={handlePhotoCapture}
-                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                        />
-                        <div
-                          className={clsx(
-                            "w-full h-12 border rounded-xl flex items-center justify-center gap-2 transition-colors font-medium text-sm",
-                            formPhoto
-                              ? "bg-green-50 border-green-200 text-green-700 dark:bg-green-900/20 dark:border-green-800 dark:text-green-400"
-                              : "bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300",
-                          )}
-                        >
-                          {formPhoto ? (
-                            <>
-                              <Check size={16} /> Foto
-                            </>
-                          ) : (
-                            <>
-                              <Camera size={16} /> Foto
-                            </>
-                          )}
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setAltName(name);
-                          setAltPrice("");
-                          setAltQuantity("1");
-                          setAltUnit(unit);
-                          setIsComparing(true);
-                        }}
-                        className="w-full h-12 border border-cyan-200 dark:border-cyan-900/50 text-cyan-600 dark:text-cyan-400 rounded-xl flex items-center justify-center gap-2 font-medium text-sm hover:bg-cyan-50 dark:hover:bg-cyan-900/20 transition-colors"
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <div className="relative">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        onChange={handlePhotoCapture}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                      />
+                      <div
+                        className={clsx(
+                          "w-full h-10 border rounded-full flex items-center justify-center gap-2 transition-colors font-medium text-sm",
+                          formPhoto
+                            ? "bg-green-50 border-green-200 text-green-700 dark:bg-green-900/20 dark:border-green-800 dark:text-green-400"
+                            : "bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300",
+                        )}
                       >
-                        <Scale size={16} /> Alternativa
-                      </button>
+                        {formPhoto ? (
+                          <>
+                            <Check size={14} /> Foto
+                          </>
+                        ) : (
+                          <>
+                            <Camera size={14} /> Foto
+                          </>
+                        )}
+                      </div>
                     </div>
-                  )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAltName(name);
+                        setAltEmoji(emoji);
+                        setAltPrice("");
+                        setAltQuantity("1");
+                        setAltUnit(unit);
+                        setAltPresentation(presentation || "");
+                        setAltDetails("");
+                        setSelectedAltId("main");
+                        setIsComparing(true);
+                      }}
+                      className="w-full h-10 border border-cyan-200 dark:border-cyan-900/50 text-cyan-600 dark:text-cyan-400 rounded-full flex items-center justify-center gap-2 font-medium text-sm hover:bg-cyan-50 dark:hover:bg-cyan-900/20 transition-colors"
+                    >
+                      <Scale size={14} /> Alternativa
+                    </button>
+                  </div>
 
                   <button
                     onClick={handleSave}
                     disabled={!name}
-                    className="w-full py-3 bg-cyan-600 hover:bg-cyan-700 text-white font-bold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-4"
+                    className="w-full py-3 bg-cyan-600 hover:bg-cyan-700 text-white font-bold rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-2"
                   >
                     {editingItemId ? "Guardar Cambios" : "Crear Ítem"}
                   </button>
@@ -1698,301 +1831,358 @@ export const HomeScreen = () => {
 
                   {/* Main Item */}
                   {(() => {
-                    const mainUnitPrice = getNormalizedPrice(
-                      parseFloat(price) || 0,
-                      parseFloat(quantity) || 1,
-                      unit,
-                      exchangeRate,
-                      currency,
-                      parseFloat(presentation) || 1,
-                    );
-                    const mainBaseUnit = getBaseUnit(unit);
+                    const currentOption = {
+                      id: selectedAltId,
+                      name: name || "Sin nombre",
+                      emoji: emoji,
+                      price: parseFloat(price) || 0,
+                      quantity: parseFloat(quantity) || 1,
+                      unit: unit,
+                      presentation: parseFloat(presentation) || 1,
+                      details: details,
+                      currency: currency || "S/",
+                      isMain: selectedAltId === "main",
+                    };
 
-                    const altPrices = alternatives.map((alt) => ({
-                      id: alt.id,
+                    const otherOptions = alternatives
+                      .filter(alt => alt.id !== selectedAltId)
+                      .map(alt => ({
+                        ...alt,
+                        isMain: alt.id === "main" || alt.id === "original-config",
+                      }));
+
+                    const allRenderOptions = [currentOption, ...otherOptions].map(opt => ({
+                      ...opt,
                       unitPrice: getNormalizedPrice(
-                        alt.price,
-                        alt.quantity,
-                        alt.unit,
+                        opt.price,
+                        opt.quantity,
+                        opt.unit,
                         exchangeRate,
-                        alt.currency,
-                        alt.presentation || 1,
+                        opt.currency,
+                        opt.presentation,
                       ),
-                      baseUnit: getBaseUnit(alt.unit),
+                      baseUnit: getBaseUnit(opt.unit),
                     }));
 
-                    const allOptions = [
-                      {
-                        id: "main",
-                        unitPrice: mainUnitPrice,
-                        baseUnit: mainBaseUnit,
-                      },
-                      ...altPrices,
-                    ];
+                    const sortedRenderOptions = [...allRenderOptions].sort((a, b) => {
+                      if (a.id === selectedAltId) return -1;
+                      if (b.id === selectedAltId) return 1;
+                      return 0;
+                    });
 
-                    const comparableOptions = allOptions.filter(
-                      (opt) => opt.baseUnit === mainBaseUnit && opt.unitPrice > 0,
+                    const firstBaseUnit = sortedRenderOptions[0]?.baseUnit;
+
+                    const comparableOptions = allRenderOptions.filter(
+                      (opt) => opt.baseUnit === firstBaseUnit && opt.unitPrice > 0,
                     );
-                    const bestOptionId =
-                      comparableOptions.length > 1
-                        ? comparableOptions.reduce((prev, curr) =>
-                            prev.unitPrice < curr.unitPrice ? prev : curr,
-                          ).id
-                        : null;
+                    
+                    const minUnitPrice = comparableOptions.length > 0
+                      ? Math.min(...comparableOptions.map(o => o.unitPrice))
+                      : Infinity;
+
+                    const bestOptionIds = comparableOptions.length > 0
+                      ? comparableOptions
+                          .filter(o => o.unitPrice === minUnitPrice && o.unitPrice > 0)
+                          .map(o => o.id)
+                      : [];
 
                     return (
-                      <>
-                        <div
-                          className={clsx(
-                            "border-2 rounded-2xl p-4 transition-all",
-                            bestOptionId === "main"
-                              ? "bg-emerald-50 border-emerald-500 dark:bg-emerald-900/20 shadow-md"
-                              : "bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700",
-                          )}
-                        >
-                          <div className="flex justify-between items-start mb-2">
-                            <div className="flex items-center gap-3">
-                              <span className="text-2xl">{emoji}</span>
-                              <div>
-                                <h4 className="font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-                                  {name || "Sin nombre"}
-                                  <span className="text-[10px] font-normal text-gray-500 bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded-full">
-                                    Actual
-                                  </span>
-                                  {bestOptionId === "main" && (
-                                    <span className="text-[10px] font-bold text-white bg-emerald-500 px-2 py-0.5 rounded-full flex items-center gap-1">
-                                      <Check size={10} /> Mejor Valor
-                                    </span>
-                                  )}
-                                </h4>
-                                <p className="text-sm text-gray-500">
-                                  {quantity}{" "}
-                                  {presentation && presentation !== "1"
-                                    ? `x ${presentation}`
-                                    : ""}{" "}
-                                  {unit}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <p className="font-bold text-lg">
-                                {currency || "S/"}{" "}
-                                {(
-                                  (parseFloat(price) || 0) *
-                                  (parseFloat(quantity) || 1)
-                                ).toFixed(2)}
-                              </p>
-                              {mainUnitPrice > 0 && (
-                                <p className="text-[10px] text-gray-500 font-medium">
-                                  S/ {mainUnitPrice.toFixed(2)} por{" "}
-                                  {mainBaseUnit}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Alternatives List */}
-                        {alternatives.map((alt) => {
-                          const altInfo = altPrices.find((ap) => ap.id === alt.id);
-                          const isBest = bestOptionId === alt.id;
-                          const isComparable = altInfo?.baseUnit === mainBaseUnit;
+                      <div className="space-y-4">
+                        {sortedRenderOptions.map((opt, index) => {
+                          const isSelected = opt.id === selectedAltId;
+                          const isBest = bestOptionIds.includes(opt.id);
+                          const isComparable = opt.baseUnit === firstBaseUnit;
 
                           return (
                             <div
-                              key={alt.id}
+                              key={opt.id}
+                              onClick={() => handleSelectAlternative(opt.id)}
+                              onContextMenu={(e) => {
+                                e.preventDefault();
+                                setEditingAltId(opt.id === "main" ? "main" : opt.id);
+                                setAltName(opt.name);
+                                setAltEmoji(opt.emoji || "");
+                                setAltPrice(opt.price.toString());
+                                setAltQuantity(opt.quantity.toString());
+                                setAltUnit(opt.unit);
+                                setAltPresentation(opt.presentation.toString());
+                                setAltDetails(opt.details || "");
+                                setIsAddingAlternative(true);
+                              }}
                               className={clsx(
-                                "border-2 rounded-2xl p-4 transition-all relative",
-                                isBest
-                                  ? "bg-emerald-50 border-emerald-500 dark:bg-emerald-900/20 shadow-md"
-                                  : "bg-white dark:bg-notion-dark-bg border-gray-200 dark:border-gray-700 opacity-80 hover:opacity-100",
+                                "border-2 rounded-2xl p-4 transition-all relative cursor-pointer group",
+                                isSelected
+                                  ? "bg-white dark:bg-notion-dark-bg border-cyan-500 shadow-md scale-100 z-10"
+                                  : "bg-gray-50/50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 hover:border-cyan-300 dark:hover:border-cyan-800 scale-[0.97] opacity-80",
                               )}
                             >
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveAlternative(alt.id)}
-                                className="absolute top-2 right-2 p-1 text-gray-400 hover:text-red-500 transition-colors"
-                              >
-                                <X size={16} />
-                              </button>
-                              <div className="flex justify-between items-start mb-3 pr-6">
-                                <div className="flex items-center gap-3">
-                                  <span className="text-2xl">{emoji}</span>
-                                  <div>
-                                    <h4 className="font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-                                      {alt.name || "Alternativa"}
-                                      {isBest && (
-                                        <span className="text-[10px] font-bold text-white bg-emerald-500 px-2 py-0.5 rounded-full flex items-center gap-1">
-                                          <Check size={10} /> Mejor Valor
-                                        </span>
-                                      )}
+                              {!opt.isMain && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleRemoveAlternative(opt.id);
+                                  }}
+                                  className="absolute -top-2 -right-2 p-1 text-gray-400 hover:text-red-500 transition-colors bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full z-10 shadow-sm opacity-0 group-hover:opacity-100"
+                                >
+                                  <X size={12} />
+                                </button>
+                              )}
+
+                              <div className="flex justify-between items-center">
+                                {/* Left Side */}
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <span className="text-xl">{opt.emoji}</span>
+                                    <h4 className="font-bold text-gray-900 dark:text-gray-100 truncate">
+                                      {opt.name}
                                     </h4>
-                                    <p className="text-sm text-gray-500">
-                                      {alt.quantity}{" "}
-                                      {alt.presentation && alt.presentation !== 1
-                                        ? `x ${alt.presentation}`
-                                        : ""}{" "}
-                                      {alt.unit}
-                                    </p>
+                                    {opt.details && (
+                                      <span className="text-[10px] text-gray-400 dark:text-gray-500 truncate italic">
+                                        - {opt.details}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="flex flex-wrap gap-1.5">
+                                    <span className="text-[10px] font-medium text-gray-600 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded-md">
+                                      {opt.presentation} {opt.unit}
+                                    </span>
+                                    {isBest && (
+                                      <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/40 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800">
+                                        Mejor valor
+                                      </span>
+                                    )}
+                                    {!isComparable && (
+                                      <span className="text-[9px] font-bold text-amber-600 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-md border border-amber-200 dark:border-amber-800">
+                                        No comparable
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
-                                <div className="text-right">
-                                  <p className="font-bold text-lg">
-                                    {alt.currency || "S/"}{" "}
-                                    {(alt.price * alt.quantity).toFixed(2)}
-                                  </p>
-                                  {altInfo && altInfo.unitPrice > 0 && (
-                                    <p className="text-[10px] text-gray-500 font-medium">
-                                      S/ {altInfo.unitPrice.toFixed(2)} por{" "}
-                                      {altInfo.baseUnit}
-                                    </p>
-                                  )}
-                                  {!isComparable && (
-                                    <p className="text-[8px] text-amber-500 font-bold uppercase mt-1">
-                                      Unidades no comparables
-                                    </p>
+
+                                {/* Right Side */}
+                                <div className="text-right ml-4">
+                                  <div className="font-bold text-lg text-gray-900 dark:text-gray-100">
+                                    {opt.currency} {(opt.price * opt.quantity).toFixed(2)}
+                                  </div>
+                                  {opt.unitPrice > 0 && (
+                                    <div className="text-[10px] font-medium text-cyan-600 dark:text-cyan-400 mt-0.5">
+                                      S/ {opt.unitPrice.toFixed(2)} / {opt.baseUnit}
+                                    </div>
                                   )}
                                 </div>
                               </div>
-                              <button
-                                type="button"
-                                onClick={() => handleSwapAlternative(alt)}
-                                className={clsx(
-                                  "w-full py-2 rounded-xl font-bold text-sm transition-colors",
-                                  isBest
-                                    ? "bg-emerald-500 text-white hover:bg-emerald-600"
-                                    : "bg-cyan-50 dark:bg-cyan-900/20 text-cyan-600 dark:text-cyan-400 hover:bg-cyan-100 dark:hover:bg-cyan-900/40",
-                                )}
-                              >
-                                Elegir como principal
-                              </button>
                             </div>
                           );
                         })}
-                      </>
+                      </div>
                     );
                   })()}
 
-                  {/* Add New Alternative Form */}
-                  {isAddingAlternative ? (
-                    <div className="bg-white dark:bg-notion-dark-bg border-2 border-cyan-500 rounded-2xl p-4 shadow-md">
-                      <div className="flex items-center justify-between mb-4">
-                        <h4 className="font-bold text-cyan-600 dark:text-cyan-400">
-                          Nueva Alternativa
-                        </h4>
-                        <button
-                          type="button"
-                          onClick={() => setIsAddingAlternative(false)}
-                          className="text-gray-400 hover:text-gray-600"
-                        >
-                          <X size={20} />
-                        </button>
-                      </div>
-                      <div className="flex items-center gap-3 mb-4">
-                        <span className="text-2xl">{emoji}</span>
-                        <input
-                          type="text"
-                          value={altName}
-                          onChange={(e) => setAltName(e.target.value)}
-                          className="flex-1 w-full bg-transparent border-b border-gray-200 dark:border-gray-700 text-lg font-bold focus:outline-none focus:border-cyan-500 pb-1"
-                          placeholder="Nombre de alternativa"
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-12 gap-3 mb-4">
-                        <div className="col-span-4">
-                          <label className="block text-xs font-medium text-gray-500 mb-1">
-                            Cantidad
-                          </label>
-                          <div className="flex items-center bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden h-12">
-                            <input
-                              type="text"
-                              inputMode="decimal"
-                              value={altQuantity}
-                              onChange={(e) =>
-                                handleNumberInput(
-                                  e.target.value,
-                                  setAltQuantity,
-                                )
-                              }
-                              className="flex-1 w-full h-full bg-transparent text-center font-semibold focus:outline-none"
-                            />
-                          </div>
-                        </div>
-                        <div className="col-span-3 relative">
-                          <label className="block text-xs font-medium text-gray-500 mb-1">
-                            Unidad
-                          </label>
+                  {/* Add/Edit Alternative Modal */}
+                  {isAddingAlternative && (
+                    <div className="fixed inset-0 z-[60] flex justify-center bg-black/50 backdrop-blur-sm items-start">
+                      <div className="bg-white dark:bg-notion-dark-bg w-full max-w-md rounded-b-3xl shadow-xl overflow-hidden animate-in slide-in-from-top-full p-4">
+                        <div className="flex items-center justify-between mb-4">
+                          <h4 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                            {editingAltId ? "Editar Alternativa" : "Nueva Alternativa"}
+                          </h4>
                           <button
                             type="button"
-                            onClick={() =>
-                              setShowAltUnitChips(!showAltUnitChips)
-                            }
-                            className="w-full h-12 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-2 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 flex items-center justify-center"
+                            onClick={() => {
+                              setIsAddingAlternative(false);
+                              setEditingAltId(null);
+                            }}
+                            className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors bg-gray-100 dark:bg-gray-800 rounded-full"
                           >
-                            {altUnit}
+                            <X size={18} />
                           </button>
-                          {showAltUnitChips && (
-                            <div className="absolute top-full left-0 mt-1 w-48 bg-white dark:bg-notion-dark-gray-bg border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-50 p-2 grid grid-cols-3 gap-1">
-                              {UNITS.map((u) => (
-                                <button
-                                  key={u}
-                                  type="button"
-                                  onClick={() => {
-                                    setAltUnit(u);
-                                    setShowAltUnitChips(false);
-                                  }}
+                        </div>
+
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={altEmoji}
+                              onChange={(e) => setAltEmoji(e.target.value)}
+                              className="w-10 h-10 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full text-center text-xl focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                              placeholder="🛒"
+                            />
+                            <input
+                              type="text"
+                              value={altName}
+                              onChange={(e) => setAltName(e.target.value)}
+                              className="flex-1 w-full bg-transparent border-b border-gray-200 dark:border-gray-700 text-base font-bold focus:outline-none focus:border-cyan-500 pb-1"
+                              placeholder="Nombre de alternativa"
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-[10px] font-medium text-gray-500 mb-0.5 ml-2">
+                                Presentación
+                              </label>
+                              <div className="flex items-center bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full overflow-hidden h-10">
+                                <input
+                                  type="text"
+                                  inputMode="decimal"
+                                  value={altPresentation}
+                                  onChange={(e) =>
+                                    handleNumberInput(
+                                      e.target.value,
+                                      setAltPresentation,
+                                    )
+                                  }
+                                  className="flex-1 w-full h-full bg-transparent text-center font-semibold text-sm focus:outline-none"
+                                  placeholder="1"
+                                />
+                              </div>
+                            </div>
+                            <div className="relative">
+                              <label className="block text-[10px] font-medium text-gray-500 mb-0.5 ml-2">
+                                Unidad
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setShowAltUnitChips(!showAltUnitChips)
+                                }
+                                className="w-full h-10 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full px-2 font-medium focus:outline-none focus:ring-2 focus:ring-cyan-500 flex items-center justify-center text-sm"
+                              >
+                                {altUnit}
+                              </button>
+                              {showAltUnitChips && (
+                                <div className="absolute top-full right-0 mt-1 w-48 bg-white dark:bg-notion-dark-gray-bg border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-50 p-2 grid grid-cols-3 gap-1">
+                                  {UNITS.map((u) => (
+                                    <button
+                                      key={u}
+                                      type="button"
+                                      onClick={() => {
+                                        setAltUnit(u);
+                                        setShowAltUnitChips(false);
+                                      }}
+                                      className={clsx(
+                                        "py-1.5 rounded-lg text-xs font-bold transition-all",
+                                        altUnit === u
+                                          ? "bg-cyan-600 text-white"
+                                          : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700",
+                                      )}
+                                    >
+                                      {u}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-[10px] font-medium text-gray-500 mb-0.5 ml-2">
+                                Precio Total
+                              </label>
+                              <div className="flex items-center bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full overflow-hidden h-10 px-3">
+                                <span className="text-gray-400 font-bold mr-2 text-xs">
+                                  {currency || "S/"}
+                                </span>
+                                <input
+                                  type="text"
+                                  inputMode="decimal"
+                                  value={altPrice}
+                                  onChange={(e) =>
+                                    handleNumberInput(e.target.value, setAltPrice)
+                                  }
+                                  className="flex-1 h-full bg-transparent font-bold text-sm focus:outline-none"
+                                  placeholder="0.00"
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-medium text-gray-500 mb-0.5 ml-2">
+                                Foto
+                              </label>
+                              <div className="relative h-10">
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  capture="environment"
+                                  onChange={handleAltPhotoCapture}
+                                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                />
+                                <div
                                   className={clsx(
-                                    "py-1.5 rounded-lg text-sm font-medium",
-                                    altUnit === u
-                                      ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300"
-                                      : "hover:bg-gray-100 dark:hover:bg-gray-700",
+                                    "w-full h-full border rounded-full flex items-center justify-center gap-2 transition-colors font-medium text-xs",
+                                    altPhoto
+                                      ? "bg-green-50 border-green-200 text-green-700 dark:bg-green-900/20 dark:border-green-800 dark:text-green-400"
+                                      : "bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300",
                                   )}
                                 >
-                                  {u}
-                                </button>
-                              ))}
+                                  {altPhoto ? (
+                                    <>
+                                      <Check size={14} /> Foto
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Camera size={14} /> Foto
+                                    </>
+                                  )}
+                                </div>
+                              </div>
                             </div>
-                          )}
-                        </div>
-                        <div className="col-span-5">
-                          <label className="block text-xs font-medium text-gray-500 mb-1 text-right">
-                            {altUnit === "un"
-                              ? "Precio Unitario"
-                              : "Precio Total"}
-                          </label>
-                          <div className="relative h-12">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-bold">
-                              {currency || "S/"}
-                            </span>
-                            <input
-                              autoFocus
-                              type="text"
-                              inputMode="decimal"
-                              value={altPrice}
-                              onChange={(e) =>
-                                handleNumberInput(e.target.value, setAltPrice)
-                              }
-                              className="w-full h-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl pl-8 pr-3 text-right text-lg font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                              placeholder="0.00"
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-medium text-gray-500 mb-0.5 ml-2">
+                              Detalles
+                            </label>
+                            <textarea
+                              value={altDetails}
+                              onChange={(e) => setAltDetails(e.target.value)}
+                              className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 resize-none"
+                              rows={2}
+                              placeholder="Observaciones..."
                             />
+                          </div>
+
+                          <div className="flex gap-3 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsAddingAlternative(false);
+                                setEditingAltId(null);
+                              }}
+                              className="flex-1 py-2.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 font-bold rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-sm"
+                            >
+                              Cancelar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleSaveAlternative}
+                              className="flex-1 py-2.5 bg-cyan-600 text-white font-bold rounded-full hover:bg-cyan-700 transition-colors shadow-lg shadow-cyan-600/20 text-sm"
+                            >
+                              {editingAltId ? "Guardar" : "Agregar"}
+                            </button>
                           </div>
                         </div>
                       </div>
-
-                      <button
-                        type="button"
-                        onClick={handleSaveAlternative}
-                        disabled={!altName}
-                        className="w-full py-2.5 bg-cyan-600 text-white rounded-xl font-bold disabled:opacity-50"
-                      >
-                        Guardar Alternativa
-                      </button>
                     </div>
-                  ) : (
+                  )}
+
+                  {!isAddingAlternative && (
                     <button
                       type="button"
-                      onClick={() => setIsAddingAlternative(true)}
+                      onClick={() => {
+                        setAltName(name);
+                        setAltEmoji(emoji);
+                        setAltPrice("");
+                        setAltQuantity("1");
+                        setAltUnit(unit);
+                        setAltPresentation(presentation || "");
+                        setAltDetails("");
+                        setAltPhoto(null);
+                        setIsAddingAlternative(true);
+                        setEditingAltId(null);
+                      }}
                       className="w-full h-12 border-2 border-dashed border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400 rounded-xl flex items-center justify-center gap-2 font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                     >
                       <Plus size={18} /> Añadir otra alternativa
