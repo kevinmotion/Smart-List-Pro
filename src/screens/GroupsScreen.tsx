@@ -62,7 +62,7 @@ export const GroupsScreen = () => {
   // Tag Modal states
   const [isTagModalOpen, setIsTagModalOpen] = useState(false);
   const [editingTagId, setEditingTagId] = useState<string | null>(null);
-  const [tagEmoji, setTagEmoji] = useState('🛒');
+  const [tagEmoji, setTagEmoji] = useState('');
   const [tagName, setTagName] = useState('');
 
   // Tag Reassign states
@@ -153,7 +153,7 @@ export const GroupsScreen = () => {
       setTagName(tag.name);
     } else {
       setEditingTagId(null);
-      setTagEmoji('🛒');
+      setTagEmoji('');
       setTagName('');
     }
     setIsTagModalOpen(true);
@@ -161,12 +161,13 @@ export const GroupsScreen = () => {
 
   const handleSaveTag = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!tagName.trim() || !tagEmoji.trim()) return;
+    if (!tagName.trim()) return;
+    const finalEmoji = tagEmoji.trim() || '🛒';
 
     if (editingTagId) {
-      updateTag(editingTagId, { name: tagName.trim(), emoji: tagEmoji.trim() });
+      updateTag(editingTagId, { name: tagName.trim(), emoji: finalEmoji });
     } else {
-      addTag(tagName.trim(), tagEmoji.trim());
+      addTag(tagName.trim(), finalEmoji);
     }
     setIsTagModalOpen(false);
     setExpandedSection('tags');
@@ -823,11 +824,11 @@ export const GroupsScreen = () => {
                 <div className="w-20">
                   <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Emoji</label>
                   <input
-                    required
                     type="text"
                     maxLength={2}
                     value={tagEmoji}
                     onChange={e => setTagEmoji(e.target.value)}
+                    placeholder="🛒"
                     className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-3 text-center text-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500"
                   />
                 </div>

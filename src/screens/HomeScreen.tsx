@@ -90,7 +90,7 @@ export const HomeScreen = () => {
 
   // Category State
   const [newCategoryName, setNewCategoryName] = useState("");
-  const [newCategoryEmoji, setNewCategoryEmoji] = useState("🛒");
+  const [newCategoryEmoji, setNewCategoryEmoji] = useState("");
 
   // Person State
   const [newPersonName, setNewPersonName] = useState("");
@@ -996,7 +996,7 @@ export const HomeScreen = () => {
                   if (newCategoryName.trim()) {
                     addTag(newCategoryName.trim(), newCategoryEmoji || "🛒");
                     setNewCategoryName("");
-                    setNewCategoryEmoji("🛒");
+                    setNewCategoryEmoji("");
                     setShowAddCategory(false);
                   }
                 }}
