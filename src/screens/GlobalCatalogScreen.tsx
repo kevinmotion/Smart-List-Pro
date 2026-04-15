@@ -198,11 +198,8 @@ export function GlobalCatalogScreen() {
                 <div 
                   key={item.id} 
                   onClick={() => setSelectedHistoryItem(item)}
-                  className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 flex items-center gap-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                  className="bg-white dark:bg-gray-800 rounded-xl py-3 px-4 shadow-sm border border-gray-100 dark:border-gray-700 flex items-center gap-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
                 >
-                  <div className="w-12 h-12 bg-gray-50 dark:bg-gray-700 rounded-xl flex items-center justify-center text-2xl shrink-0">
-                    {item.emoji || <Package size={24} className="text-gray-400" />}
-                  </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm truncate">{item.name}</h3>
