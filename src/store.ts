@@ -103,6 +103,7 @@ export type CatalogItem = {
   unitType: string;
   defaultCategory: string;
   defaultCategoryEmoji?: string;
+  isBulk?: boolean;
   lastPrice?: number;
   lastCurrency?: string;
   priceHistory?: { date: number; price: number; currency: string; locationName?: string }[];
@@ -135,6 +136,7 @@ export type Item = {
   paidById?: string | null;
   packedById?: string | null;
   order?: number;
+  isBulk?: boolean;
 };
 
 interface AppState {
@@ -472,9 +474,19 @@ export const useStore = create<AppState>()(
           const itemLocation = currentState.locations.find(l => l.id === fullItem.locationId);
           const actualLocationName = itemLocation ? itemLocation.name : '';
           
+          let historicalPrice = fullItem.price;
+          if (fullItem.isBulk && fullItem.quantity && fullItem.quantity > 0) {
+            const unit = fullItem.unit?.toLowerCase() || '';
+            if (unit === 'g' || unit === 'ml') {
+              historicalPrice = (fullItem.price / fullItem.quantity) * 1000;
+            } else if (unit === 'kg' || unit === 'l' || unit === 'litro') {
+              historicalPrice = fullItem.price / fullItem.quantity;
+            }
+          }
+          
           const historyEntry = {
             date: Date.now(),
-            price: fullItem.price,
+            price: historicalPrice,
             currency: listCurrency,
             locationName: actualLocationName
           };
@@ -482,12 +494,13 @@ export const useStore = create<AppState>()(
           if (existingCatalogItem) {
             const updatedHistory = [...(existingCatalogItem.priceHistory || []), historyEntry];
             currentState.updateCatalogItem(existingCatalogItem.id, {
-              lastPrice: fullItem.price,
+              lastPrice: historicalPrice,
               lastCurrency: listCurrency,
               priceHistory: updatedHistory,
               defaultCategory: actualCategoryName,
               defaultCategoryEmoji: actualCategoryEmoji,
-              emoji: fullItem.emoji || null
+              emoji: fullItem.emoji || null,
+              isBulk: fullItem.isBulk
             });
           } else {
             currentState.addCatalogItem({
@@ -498,9 +511,10 @@ export const useStore = create<AppState>()(
               unitType: fullItem.unit || '',
               defaultCategory: actualCategoryName,
               defaultCategoryEmoji: actualCategoryEmoji,
-              lastPrice: fullItem.price,
+              lastPrice: historicalPrice,
               lastCurrency: listCurrency,
-              priceHistory: [historyEntry]
+              priceHistory: [historyEntry],
+              isBulk: fullItem.isBulk
             });
           }
         }

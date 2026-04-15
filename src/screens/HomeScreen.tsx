@@ -84,12 +84,26 @@ export const HomeScreen = () => {
   const [paidById, setPaidById] = useState<string>("");
   const [packedById, setPackedById] = useState<string>("");
   const [alternatives, setAlternatives] = useState<Alternative[]>([]);
+  const [isBulk, setIsBulk] = useState(false);
   
   // Predictive Search State
   const [suggestions, setSuggestions] = useState<typeof catalogItems>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [previousPriceMemory, setPreviousPriceMemory] = useState<number | null>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
+
+  const currentNormalizedPrice = useMemo(() => {
+    const p = parseFloat(price) || 0;
+    if (!isBulk) return p;
+    const q = parseFloat(quantity) || 1;
+    const u = unit.toLowerCase();
+    if (u === 'g' || u === 'ml') {
+      return (p / q) * 1000;
+    } else if (u === 'kg' || u === 'l' || u === 'litro') {
+      return p / q;
+    }
+    return p;
+  }, [price, quantity, unit, isBulk]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -440,6 +454,7 @@ export const HomeScreen = () => {
     setAltUnit("un");
     setAltPhoto(null);
     setSelectedAltId("main");
+    setIsBulk(false);
   };
 
   const handleEditItem = (item: Item) => {
@@ -460,6 +475,7 @@ export const HomeScreen = () => {
     setAlternatives(item.alternatives || []);
     setFormGroupId(item.groupId);
     setSelectedAltId("main");
+    setIsBulk(item.isBulk || false);
     
     setIsAdding(true);
   };
@@ -643,6 +659,7 @@ export const HomeScreen = () => {
       paidById: paidById || null,
       packedById: packedById || null,
       alternatives: finalAlternatives,
+      isBulk,
     };
 
     if (editingItemId) {
@@ -1371,6 +1388,12 @@ export const HomeScreen = () => {
                                   const newOrExistingTagId = ensureTagExists(suggestion.defaultCategory, suggestion.defaultCategoryEmoji || suggestion.emoji || undefined);
                                   setTagId(newOrExistingTagId);
                                   
+                                  if (suggestion.isBulk) {
+                                    setIsBulk(true);
+                                  } else {
+                                    setIsBulk(false);
+                                  }
+                                  
                                   setShowSuggestions(false);
                                 }}
                                 className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors border-b border-gray-100 dark:border-gray-700/50 last:border-0 flex items-center gap-3"
@@ -1412,7 +1435,7 @@ export const HomeScreen = () => {
                     <div>
                       <div className="flex justify-between items-end mb-0.5 ml-2">
                         <label className="block text-[10px] font-medium text-gray-500 dark:text-gray-400">
-                          Monto
+                          {isBulk ? "Precio Total Pagado" : "Monto"}
                         </label>
                         {activeGroup && parseFloat(price || "0") > 0 && (
                           <span className="text-[9px] text-gray-400 font-medium mr-2">
@@ -1438,11 +1461,11 @@ export const HomeScreen = () => {
                         />
                         {price && previousPriceMemory !== null && (
                           <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none">
-                            {parseFloat(price) > previousPriceMemory ? (
+                            {currentNormalizedPrice > previousPriceMemory ? (
                               <TrendingUp size={16} className="text-red-500" />
-                            ) : parseFloat(price) < previousPriceMemory && parseFloat(price) > 0 ? (
+                            ) : currentNormalizedPrice < previousPriceMemory && currentNormalizedPrice > 0 ? (
                               <TrendingDown size={16} className="text-green-500" />
-                            ) : parseFloat(price) === previousPriceMemory ? (
+                            ) : currentNormalizedPrice === previousPriceMemory ? (
                               <Minus size={16} className="text-gray-400" />
                             ) : null}
                           </div>
@@ -1491,11 +1514,42 @@ export const HomeScreen = () => {
                     </div>
                   </div>
 
+                  {/* Toggle Venta a Granel */}
+                  <div className="flex items-center justify-between px-2 py-1">
+                    <div className="flex items-center gap-2">
+                      <Scale size={16} className="text-gray-400" />
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Venta a granel / Peso variable
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsBulk(!isBulk);
+                        if (!isBulk) {
+                          // Switching to bulk, set default unit to kg if it's 'un'
+                          if (unit === 'un') setUnit('kg');
+                        }
+                      }}
+                      className={clsx(
+                        "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2",
+                        isBulk ? "bg-indigo-600" : "bg-gray-200 dark:bg-gray-700"
+                      )}
+                    >
+                      <span
+                        className={clsx(
+                          "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                          isBulk ? "translate-x-6" : "translate-x-1"
+                        )}
+                      />
+                    </button>
+                  </div>
+
                   {/* Fila 3: Cantidad, Presentación, Unidad */}
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className={clsx("grid gap-2", isBulk ? "grid-cols-2" : "grid-cols-3")}>
                     <div>
                       <label className="block text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-0.5 ml-2">
-                        Cantidad
+                        {isBulk ? "Peso / Volumen Total (Ej. 1500)" : "Cantidad"}
                       </label>
                       <div className="h-10 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full flex items-center px-1">
                         <button
@@ -1504,7 +1558,7 @@ export const HomeScreen = () => {
                             const val = parseFloat(quantity || "0");
                             if (val > 1) setQuantity((val - 1).toString());
                           }}
-                          className="w-8 h-8 flex items-center justify-center bg-white dark:bg-gray-700 rounded-full text-gray-500 hover:text-cyan-600 transition-colors shadow-sm"
+                          className="w-8 h-8 flex items-center justify-center bg-white dark:bg-gray-700 rounded-full text-gray-500 hover:text-cyan-600 transition-colors shadow-sm shrink-0"
                         >
                           <Minus size={14} />
                         </button>
@@ -1514,7 +1568,7 @@ export const HomeScreen = () => {
                           inputMode="decimal"
                           value={quantity}
                           onChange={(e) => handleNumberInput(e.target.value, setQuantity)}
-                          className="flex-1 w-full bg-transparent text-center font-bold text-sm focus:outline-none"
+                          className="flex-1 w-full min-w-0 bg-transparent text-center font-bold text-sm focus:outline-none"
                         />
                         <button
                           type="button"
@@ -1522,27 +1576,29 @@ export const HomeScreen = () => {
                             const val = parseFloat(quantity || "0");
                             setQuantity((val + 1).toString());
                           }}
-                          className="w-8 h-8 flex items-center justify-center bg-white dark:bg-gray-700 rounded-full text-gray-500 hover:text-cyan-600 transition-colors shadow-sm"
+                          className="w-8 h-8 flex items-center justify-center bg-white dark:bg-gray-700 rounded-full text-gray-500 hover:text-cyan-600 transition-colors shadow-sm shrink-0"
                         >
                           <Plus size={14} />
                         </button>
                       </div>
                     </div>
-                    <div>
-                      <label className="block text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-0.5 ml-2">
-                        Presentación
-                      </label>
-                      <div className="h-10 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full overflow-hidden">
-                        <input
-                          required
-                          type="text"
-                          inputMode="decimal"
-                          value={presentation}
-                          onChange={(e) => handleNumberInput(e.target.value, setPresentation)}
-                          className="w-full h-full bg-transparent text-center font-semibold text-sm focus:outline-none"
-                        />
+                    {!isBulk && (
+                      <div>
+                        <label className="block text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-0.5 ml-2">
+                          Presentación
+                        </label>
+                        <div className="h-10 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full overflow-hidden">
+                          <input
+                            required
+                            type="text"
+                            inputMode="decimal"
+                            value={presentation}
+                            onChange={(e) => handleNumberInput(e.target.value, setPresentation)}
+                            className="w-full h-full bg-transparent text-center font-semibold text-sm focus:outline-none"
+                          />
+                        </div>
                       </div>
-                    </div>
+                    )}
                     <div className="relative">
                       <label className="block text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-0.5 ml-2">
                         Unidad
@@ -1556,7 +1612,7 @@ export const HomeScreen = () => {
                       </button>
                       {showUnitChips && (
                         <div className="absolute top-full right-0 mt-1 w-48 bg-white dark:bg-notion-dark-gray-bg border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-50 p-2 grid grid-cols-3 gap-1">
-                          {UNITS.map((u) => (
+                          {(isBulk ? ["kg", "g", "L", "ml"] : UNITS).map((u) => (
                             <button
                               key={u}
                               type="button"
