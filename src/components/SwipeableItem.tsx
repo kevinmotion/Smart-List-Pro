@@ -129,7 +129,7 @@ export const SwipeableItem: React.FC<Props> = ({
     return price;
   };
 
-  const itemTotal = item.price * item.quantity;
+  const itemTotal = item.isBulk ? item.price : (item.price * item.quantity);
   const pricePerPerson =
     activeGroup && item.price > 0
       ? (
@@ -227,7 +227,7 @@ export const SwipeableItem: React.FC<Props> = ({
                       {item.currency || "S/"} {itemTotal.toFixed(2)}
                     </p>
                   )}
-                  {(item.presentation || item.unit) && (
+                  {!item.isBulk && (item.presentation || item.unit) && (
                     <div className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 rounded-full text-[9px] font-bold whitespace-nowrap border border-gray-200 dark:border-gray-700">
                       {item.presentation ? `${item.presentation} ${item.unit || "un"}` : (item.unit || "un")}
                     </div>
@@ -248,31 +248,52 @@ export const SwipeableItem: React.FC<Props> = ({
 
               {/* Right Side: Quantity Selector */}
               <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-full p-0.5 shrink-0 border border-gray-200 dark:border-gray-700">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (item.quantity > 1 && onUpdateItem) {
-                      onUpdateItem(item.id, { quantity: item.quantity - 1 });
-                    }
-                  }}
-                  className="w-6 h-6 flex items-center justify-center bg-white dark:bg-gray-700 rounded-full hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors text-gray-500"
-                >
-                  <Minus size={12} />
-                </button>
-                <span className="text-xs font-bold px-2 min-w-[1.5rem] text-center text-gray-700 dark:text-gray-300">
-                  {item.quantity}
-                </span>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (onUpdateItem) {
-                      onUpdateItem(item.id, { quantity: item.quantity + 1 });
-                    }
-                  }}
-                  className="w-6 h-6 flex items-center justify-center bg-white dark:bg-gray-700 rounded-full hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors text-gray-500"
-                >
-                  <Plus size={12} />
-                </button>
+                {item.isBulk ? (
+                  <div className="flex items-center px-2 py-0.5">
+                    <input
+                      type="number"
+                      value={item.quantity}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(e) => {
+                        if (onUpdateItem) {
+                          onUpdateItem(item.id, { quantity: Number(e.target.value) });
+                        }
+                      }}
+                      className="w-14 bg-transparent text-center font-bold text-xs text-gray-700 dark:text-gray-300 focus:outline-none"
+                    />
+                    <span className="text-[10px] text-gray-500 font-medium ml-1">
+                      {item.unit}
+                    </span>
+                  </div>
+                ) : (
+                  <>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (item.quantity > 1 && onUpdateItem) {
+                          onUpdateItem(item.id, { quantity: item.quantity - 1 });
+                        }
+                      }}
+                      className="w-6 h-6 flex items-center justify-center bg-white dark:bg-gray-700 rounded-full hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors text-gray-500"
+                    >
+                      <Minus size={12} />
+                    </button>
+                    <span className="text-xs font-bold px-2 min-w-[1.5rem] text-center text-gray-700 dark:text-gray-300">
+                      {item.quantity}
+                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (onUpdateItem) {
+                          onUpdateItem(item.id, { quantity: item.quantity + 1 });
+                        }
+                      }}
+                      className="w-6 h-6 flex items-center justify-center bg-white dark:bg-gray-700 rounded-full hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors text-gray-500"
+                    >
+                      <Plus size={12} />
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           ) : (
@@ -341,25 +362,39 @@ export const SwipeableItem: React.FC<Props> = ({
                     )}
                   </div>
                   <div className="flex items-center gap-2 mt-0.5">
-                    <div className={clsx(
-                      "flex items-center rounded-full bg-gray-100/50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 p-0.5 pr-2.5",
-                      isDimmed ? "opacity-60" : "opacity-100"
-                    )}>
-                      <div className="w-5 h-5 rounded-full bg-white dark:bg-gray-700 flex items-center justify-center shrink-0">
+                    {item.isBulk ? (
+                      <div className={clsx(
+                        "flex items-center rounded-full bg-gray-200 dark:bg-gray-700 px-2.5 py-0.5",
+                        isDimmed ? "opacity-60" : "opacity-100"
+                      )}>
                         <span className={clsx(
-                          "font-bold text-gray-700 dark:text-gray-200",
+                          "font-bold text-gray-800 dark:text-gray-200 whitespace-nowrap",
                           isSpacious ? "text-[10px]" : "text-[8px]"
                         )}>
-                          {item.quantity}
+                          {item.quantity} {item.unit || ""}
                         </span>
                       </div>
-                      <span className={clsx(
-                        "ml-2 text-gray-500 dark:text-gray-400 font-bold whitespace-nowrap",
-                        isSpacious ? "text-[10px]" : "text-[8px]"
+                    ) : (
+                      <div className={clsx(
+                        "flex items-center rounded-full bg-gray-100/50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 p-0.5 pr-2.5",
+                        isDimmed ? "opacity-60" : "opacity-100"
                       )}>
-                        {item.presentation ? `${item.presentation} ${item.unit || "un"}` : (item.unit || "un")}
-                      </span>
-                    </div>
+                        <div className="w-5 h-5 rounded-full bg-white dark:bg-gray-700 flex items-center justify-center shrink-0">
+                          <span className={clsx(
+                            "font-bold text-gray-700 dark:text-gray-200",
+                            isSpacious ? "text-[10px]" : "text-[8px]"
+                          )}>
+                            {item.quantity}
+                          </span>
+                        </div>
+                        <span className={clsx(
+                          "ml-2 text-gray-500 dark:text-gray-400 font-bold whitespace-nowrap",
+                          isSpacious ? "text-[10px]" : "text-[8px]"
+                        )}>
+                          {item.presentation ? `${item.presentation} ${item.unit || "un"}` : (item.unit || "un")}
+                        </span>
+                      </div>
+                    )}
                     {item.locationId && (
                       <div className="flex items-center gap-1 px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded-md">
                         <MapPin size={isSpacious ? 10 : 8} className="text-gray-400" />

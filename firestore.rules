@@ -138,7 +138,7 @@ service cloud.firestore {
 
     function isValidItem() {
       return hasRequiredFields(['name', 'price', 'quantity', 'order', 'createdAt', 'updatedAt']) &&
-             hasOnlyAllowedFields(['id', 'name', 'price', 'quantity', 'unit', 'currency', 'tagId', 'groupId', 'locationId', 'paidById', 'order', 'createdAt', 'updatedAt', 'photoId', 'alternatives', 'loserAlternative', 'alternativePrice', 'presentation', 'emoji', 'details', 'isBought', 'isPacked', 'packedById']) &&
+             hasOnlyAllowedFields(['id', 'name', 'price', 'quantity', 'unit', 'currency', 'tagId', 'groupId', 'locationId', 'paidById', 'order', 'createdAt', 'updatedAt', 'photoId', 'alternatives', 'loserAlternative', 'alternativePrice', 'presentation', 'emoji', 'details', 'isBought', 'isPacked', 'packedById', 'isBulk']) &&
              isValidString('name', 1, 100) &&
              isValidNumber('price', 0) &&
              isValidNumber('quantity', 0) &&
@@ -147,7 +147,7 @@ service cloud.firestore {
 
     function isValidCatalogItem() {
       return hasRequiredFields(['ownerId', 'name']) &&
-             hasOnlyAllowedFields(['id', 'ownerId', 'name', 'emoji', 'presentation', 'unitType', 'defaultCategory', 'defaultCategoryEmoji', 'lastPrice', 'lastCurrency', 'priceHistory']) &&
+             hasOnlyAllowedFields(['id', 'ownerId', 'name', 'emoji', 'presentation', 'unitType', 'defaultCategory', 'defaultCategoryEmoji', 'lastPrice', 'lastCurrency', 'priceHistory', 'isBulk']) &&
              isValidString('name', 1, 100) &&
              request.resource.data.ownerId == request.auth.uid;
     }

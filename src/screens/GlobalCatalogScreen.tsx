@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { useStore, ListTemplate } from '../store';
-import { Plus, Search, Edit2, Trash2, X, Users, User, Pencil, ShoppingCart, Luggage, Check, Home, PartyPopper, Plane, Gift, Utensils, Backpack, Car, Dog, Baby, Briefcase, GraduationCap, Heart, Dumbbell, Music, Camera, Gamepad2, Coffee, Pizza, IceCream, Sun, Moon, Cloud, TreeDeciduous, Mountain, Waves, Palette, Brush, Pen, Book, Wallet, CreditCard, Smartphone, Laptop, Zap, Droplets, Flame, Hammer, Wrench, Shield, Key, Lock, Pipette, Calendar, Package } from 'lucide-react';
+import { useStore, ListTemplate, CatalogItem } from '../store';
+import { Plus, Search, Edit2, Trash2, X, Users, User, Pencil, ShoppingCart, Luggage, Check, Home, PartyPopper, Plane, Gift, Utensils, Backpack, Car, Dog, Baby, Briefcase, GraduationCap, Heart, Dumbbell, Music, Camera, Gamepad2, Coffee, Pizza, IceCream, Sun, Moon, Cloud, TreeDeciduous, Mountain, Waves, Palette, Brush, Pen, Book, Wallet, CreditCard, Smartphone, Laptop, Zap, Droplets, Flame, Hammer, Wrench, Shield, Key, Lock, Pipette, Calendar, Package, MapPin, History } from 'lucide-react';
 import { clsx } from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LIST_COLORS, LIST_ICONS } from '../constants';
@@ -17,6 +17,7 @@ export function GlobalCatalogScreen() {
   const [phase, setPhase] = useState<1 | 2>(1);
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'templates' | 'products'>('templates');
+  const [selectedHistoryItem, setSelectedHistoryItem] = useState<CatalogItem | null>(null);
 
   // Form states
   const [name, setName] = useState('');
@@ -194,7 +195,11 @@ export function GlobalCatalogScreen() {
           ) : (
             <div className="space-y-3">
               {filteredProducts.map(item => (
-                <div key={item.id} className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 flex items-center gap-4">
+                <div 
+                  key={item.id} 
+                  onClick={() => setSelectedHistoryItem(item)}
+                  className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 flex items-center gap-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                >
                   <div className="w-12 h-12 bg-gray-50 dark:bg-gray-700 rounded-xl flex items-center justify-center text-2xl shrink-0">
                     {item.emoji || <Package size={24} className="text-gray-400" />}
                   </div>
@@ -217,7 +222,8 @@ export function GlobalCatalogScreen() {
                     </div>
                   </div>
                   <button 
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       if (window.confirm('¿Estás seguro de eliminar este producto de tu memoria?')) {
                         removeCatalogItem(item.id);
                       }
@@ -525,6 +531,97 @@ export function GlobalCatalogScreen() {
                   </div>
                 )}
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* History Modal */}
+      <AnimatePresence>
+        {selectedHistoryItem && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white dark:bg-notion-dark-gray-bg w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]"
+            >
+              {/* Header */}
+              <div className="flex items-start justify-between p-5 border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/20">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-white dark:bg-gray-800 rounded-xl flex items-center justify-center text-2xl shadow-sm border border-gray-100 dark:border-gray-700 shrink-0">
+                    {selectedHistoryItem.emoji || <Package size={24} className="text-gray-400" />}
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 leading-tight">
+                      {selectedHistoryItem.name}
+                    </h2>
+                    <div className="flex flex-col gap-0.5 mt-1">
+                      <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">
+                        {selectedHistoryItem.presentation ? `${selectedHistoryItem.presentation} ${selectedHistoryItem.unitType || ''}` : selectedHistoryItem.unitType || 'Unidad'}
+                      </span>
+                      {selectedHistoryItem.isBulk && (
+                        <span className="text-[10px] text-indigo-500 dark:text-indigo-400 font-semibold uppercase tracking-wider">
+                          Precios mostrados por Kg/L
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedHistoryItem(null)}
+                  className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors shrink-0"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="p-5 overflow-y-auto flex-1">
+                <div className="flex items-center gap-2 mb-4 text-gray-700 dark:text-gray-300">
+                  <History size={18} className="text-indigo-500" />
+                  <h3 className="font-semibold">Historial de Compras</h3>
+                </div>
+
+                {!selectedHistoryItem.priceHistory || selectedHistoryItem.priceHistory.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                    <p className="text-sm">Aún no hay historial de compras para este producto.</p>
+                  </div>
+                ) : (
+                  <div className="relative pl-4 border-l-2 border-gray-100 dark:border-gray-800 space-y-6 py-2">
+                    {[...selectedHistoryItem.priceHistory]
+                      .sort((a, b) => b.date - a.date)
+                      .map((entry, index) => (
+                        <div key={`${entry.date}-${index}`} className="relative">
+                          {/* Timeline Dot */}
+                          <div className="absolute -left-[21px] top-1.5 w-2.5 h-2.5 rounded-full bg-indigo-500 ring-4 ring-white dark:ring-notion-dark-gray-bg" />
+                          
+                          <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-3 border border-gray-100 dark:border-gray-800">
+                            <div className="flex justify-between items-start mb-2">
+                              <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                                {new Date(entry.date).toLocaleDateString(undefined, {
+                                  year: 'numeric',
+                                  month: 'short',
+                                  day: 'numeric'
+                                })}
+                              </span>
+                              <span className="font-bold text-gray-900 dark:text-gray-100">
+                                {entry.currency} {entry.price.toFixed(2)}
+                              </span>
+                            </div>
+                            
+                            {entry.locationName && (
+                              <div className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400">
+                                <MapPin size={12} className="text-gray-400" />
+                                <span className="truncate">{entry.locationName}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </div>
             </motion.div>
           </div>
         )}
