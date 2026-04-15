@@ -5,6 +5,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { db, handleFirestoreError, OperationType } from './firebase';
 import { doc, setDoc, deleteDoc, writeBatch, serverTimestamp } from 'firebase/firestore';
 
+export const normalizeText = (text: string | null | undefined): string => {
+  return (text || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+};
+
 export type Person = { 
   id: string; 
   name: string; 
@@ -94,10 +98,14 @@ export type CatalogItem = {
   id: string;
   ownerId: string;
   name: string;
-  emoji: string;
+  emoji: string | null;
   presentation: string;
   unitType: string;
   defaultCategory: string;
+  defaultCategoryEmoji?: string;
+  lastPrice?: number;
+  lastCurrency?: string;
+  priceHistory?: { date: number; price: number; currency: string; locationName?: string }[];
 };
 
 export type Item = {
@@ -164,12 +172,14 @@ interface AppState {
   removeTag: (id: string) => void;
   updateTag: (id: string, tag: Partial<Tag>) => void;
   reorderTags: (tags: Tag[]) => void;
+  ensureTagExists: (name: string, emoji?: string) => string;
   reassignTagAndDelete: (oldTagId: string, newTagId: string | null) => void;
   addLocation: (name: string) => void;
   updateLocation: (id: string, location: Partial<Location>) => void;
   removeLocation: (id: string) => void;
   reorderLocations: (locations: Location[]) => void;
   setLocations: (locations: Location[]) => void;
+  ensureGroupExists: (groupName: string) => string;
   addItem: (item: Omit<Item, 'id'>) => void;
   updateItem: (id: string, item: Partial<Item>) => void;
   removeItem: (id: string) => void;
@@ -344,6 +354,30 @@ export const useStore = create<AppState>()(
         set({ tags });
         syncListToFirestore(get());
       },
+      ensureTagExists: (name, emoji) => {
+        const state = get();
+        const normalizedName = normalizeText(name);
+        const existingTag = state.tags.find(t => normalizeText(t.name) === normalizedName);
+        
+        if (existingTag) {
+          return existingTag.id;
+        }
+        
+        const newTagId = uuidv4();
+        const newTag = {
+          id: newTagId,
+          name,
+          emoji: emoji || '🏷️',
+          order: state.tags.length
+        };
+        
+        set((state) => ({
+          tags: [...state.tags, newTag]
+        }));
+        syncListToFirestore(get());
+        
+        return newTagId;
+      },
       reassignTagAndDelete: (oldTagId, newTagId) => {
         set((state) => ({
           tags: state.tags.filter(t => t.id !== oldTagId),
@@ -376,6 +410,30 @@ export const useStore = create<AppState>()(
         set({ locations });
         syncListToFirestore(get());
       },
+      ensureGroupExists: (groupName) => {
+        const state = get();
+        const existingGroup = state.groups.find(g => g.name.toLowerCase() === groupName.toLowerCase());
+        if (existingGroup) {
+          return existingGroup.id;
+        }
+        
+        const newGroupId = uuidv4();
+        const newGroup = { 
+          id: newGroupId, 
+          name: groupName, 
+          color: '#808080', // Default color
+          peopleIds: [], 
+          organizerId: null, 
+          order: state.groups.length 
+        };
+        
+        set((state) => ({
+          groups: [...state.groups, newGroup]
+        }));
+        syncListToFirestore(get());
+        
+        return newGroupId;
+      },
       addItem: (item) => {
         const id = uuidv4();
         const state = get();
@@ -395,17 +453,67 @@ export const useStore = create<AppState>()(
         set((state) => ({ items: [...state.items, newItem] }));
       },
       updateItem: (id, item) => {
-        const state = get();
-        const updatedItems = state.items.map(i => i.id === id ? { ...i, ...item } : i);
+        const currentState = get();
+        const fullItem = { ...currentState.items.find(i => i.id === id), ...item } as Item;
         
-        if (state.activeListId && state.currentUser) {
-          const itemRef = doc(db, 'lists', state.activeListId, 'items', id);
+        // Price memory logic
+        if (fullItem.isBought === true && fullItem.price != null && fullItem.price > 0) {
+          const existingCatalogItem = currentState.catalogItems.find(
+            ci => normalizeText(ci.name) === normalizeText(fullItem.name) &&
+                  ci.presentation === String(fullItem.presentation || '') &&
+                  ci.unitType === (fullItem.unit || '')
+          );
+          
+          const listCurrency = fullItem.currency || currentState.lists.find(l => l.id === currentState.activeListId)?.currency || 'S/';
+          const itemTag = currentState.tags.find(t => t.id === fullItem.tagId);
+          const actualCategoryName = itemTag ? itemTag.name : 'General';
+          const actualCategoryEmoji = itemTag ? itemTag.emoji : '🏷️';
+          
+          const itemLocation = currentState.locations.find(l => l.id === fullItem.locationId);
+          const actualLocationName = itemLocation ? itemLocation.name : '';
+          
+          const historyEntry = {
+            date: Date.now(),
+            price: fullItem.price,
+            currency: listCurrency,
+            locationName: actualLocationName
+          };
+
+          if (existingCatalogItem) {
+            const updatedHistory = [...(existingCatalogItem.priceHistory || []), historyEntry];
+            currentState.updateCatalogItem(existingCatalogItem.id, {
+              lastPrice: fullItem.price,
+              lastCurrency: listCurrency,
+              priceHistory: updatedHistory,
+              defaultCategory: actualCategoryName,
+              defaultCategoryEmoji: actualCategoryEmoji,
+              emoji: fullItem.emoji || null
+            });
+          } else {
+            currentState.addCatalogItem({
+              ownerId: currentState.currentUser?.uid || '',
+              name: fullItem.name || '',
+              emoji: fullItem.emoji || null,
+              presentation: String(fullItem.presentation || ''),
+              unitType: fullItem.unit || '',
+              defaultCategory: actualCategoryName,
+              defaultCategoryEmoji: actualCategoryEmoji,
+              lastPrice: fullItem.price,
+              lastCurrency: listCurrency,
+              priceHistory: [historyEntry]
+            });
+          }
+        }
+
+        const updatedItems = currentState.items.map(i => i.id === id ? { ...i, ...item } : i);
+        
+        if (currentState.activeListId && currentState.currentUser) {
+          const itemRef = doc(db, 'lists', currentState.activeListId, 'items', id);
           setDoc(itemRef, removeUndefined({ 
-            ...state.items.find(i => i.id === id), 
-            ...item,
+            ...fullItem,
             updatedAt: serverTimestamp()
           }), { merge: true }).catch((error) => {
-            handleFirestoreError(error, OperationType.WRITE, `lists/${state.activeListId}/items/${id}`);
+            handleFirestoreError(error, OperationType.WRITE, `lists/${currentState.activeListId}/items/${id}`);
           });
         }
         

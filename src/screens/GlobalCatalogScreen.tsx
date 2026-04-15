@@ -11,11 +11,12 @@ const IconMap: Record<string, any> = {
 };
 
 export function GlobalCatalogScreen() {
-  const { templates, addTemplate, updateTemplate, deleteTemplate, setActiveTemplateId } = useStore();
+  const { templates, addTemplate, updateTemplate, deleteTemplate, setActiveTemplateId, catalogItems, removeCatalogItem } = useStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [phase, setPhase] = useState<1 | 2>(1);
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'templates' | 'products'>('templates');
 
   // Form states
   const [name, setName] = useState('');
@@ -31,6 +32,10 @@ export function GlobalCatalogScreen() {
 
   const filteredTemplates = templates.filter(template => 
     template.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredProducts = catalogItems.filter(item =>
+    item.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const resetForm = () => {
@@ -98,12 +103,34 @@ export function GlobalCatalogScreen() {
   return (
     <div className="h-full flex flex-col bg-notion-bg dark:bg-notion-dark-bg">
       <div className="px-5 pt-6 pb-4 shrink-0">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">Plantillas de Listas</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">Catálogo Global</h1>
+        
+        <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl mb-4">
+          <button
+            onClick={() => setActiveTab('templates')}
+            className={clsx(
+              "flex-1 py-2 text-sm font-medium rounded-lg transition-all",
+              activeTab === 'templates' ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm" : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+            )}
+          >
+            Mis Plantillas
+          </button>
+          <button
+            onClick={() => setActiveTab('products')}
+            className={clsx(
+              "flex-1 py-2 text-sm font-medium rounded-lg transition-all",
+              activeTab === 'products' ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm" : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+            )}
+          >
+            Mis Productos
+          </button>
+        </div>
+
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
           <input
             type="text"
-            placeholder="Buscar plantillas..."
+            placeholder={activeTab === 'templates' ? "Buscar plantillas..." : "Buscar productos..."}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 bg-gray-100 dark:bg-gray-800 border-none rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 transition-all dark:text-gray-200"
@@ -112,56 +139,108 @@ export function GlobalCatalogScreen() {
       </div>
 
       <div className="flex-1 overflow-y-auto px-5 pb-24">
-        {filteredTemplates.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center text-gray-500 dark:text-gray-400">
-            <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-2xl flex items-center justify-center mb-4">
-              <Search size={24} className="text-gray-400" />
-            </div>
-            <p className="font-medium text-gray-900 dark:text-gray-100 mb-1">No hay plantillas</p>
-            <p className="text-sm">Crea tu primera plantilla para usarla en tus listas.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-3">
-            {filteredTemplates.map(template => (
-              <div 
-                key={template.id} 
-                onClick={() => setActiveTemplateId(template.id)}
-                className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col relative group cursor-pointer hover:shadow-md transition-shadow"
-              >
-                <div className="flex justify-between items-start mb-2">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${template.color}20`, color: template.color }}>
-                    {IconMap[template.emoji] ? React.createElement(IconMap[template.emoji], { size: 20 }) : <ShoppingCart size={20} />}
-                  </div>
-                  <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                    <button onClick={(e) => { e.stopPropagation(); handleEdit(template); }} className="p-1.5 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                      <Edit2 size={14} />
-                    </button>
-                    <button onClick={(e) => { e.stopPropagation(); deleteTemplate(template.id); }} className="p-1.5 text-gray-400 hover:text-red-600 dark:hover:text-red-400 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                </div>
-                <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm mb-1 line-clamp-2" style={{ color: template.color }}>{template.name}</h3>
-                <div className="mt-auto flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                  <span className="flex items-center gap-1">
-                    {template.type === 'shared' ? <Users size={12} /> : <User size={12} />}
-                    {template.type === 'shared' ? 'Compartida' : 'Solo'}
-                  </span>
-                  <span>•</span>
-                  <span>{template.items?.length || 0} items</span>
-                </div>
+        {activeTab === 'templates' ? (
+          filteredTemplates.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-center text-gray-500 dark:text-gray-400">
+              <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-2xl flex items-center justify-center mb-4">
+                <Search size={24} className="text-gray-400" />
               </div>
-            ))}
-          </div>
+              <p className="font-medium text-gray-900 dark:text-gray-100 mb-1">No hay plantillas</p>
+              <p className="text-sm">Crea tu primera plantilla para usarla en tus listas.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              {filteredTemplates.map(template => (
+                <div 
+                  key={template.id} 
+                  onClick={() => setActiveTemplateId(template.id)}
+                  className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col relative group cursor-pointer hover:shadow-md transition-shadow"
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${template.color}20`, color: template.color }}>
+                      {IconMap[template.emoji] ? React.createElement(IconMap[template.emoji], { size: 20 }) : <ShoppingCart size={20} />}
+                    </div>
+                    <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                      <button onClick={(e) => { e.stopPropagation(); handleEdit(template); }} className="p-1.5 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <Edit2 size={14} />
+                      </button>
+                      <button onClick={(e) => { e.stopPropagation(); deleteTemplate(template.id); }} className="p-1.5 text-gray-400 hover:text-red-600 dark:hover:text-red-400 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                  <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm mb-1 line-clamp-2" style={{ color: template.color }}>{template.name}</h3>
+                  <div className="mt-auto flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                    <span className="flex items-center gap-1">
+                      {template.type === 'shared' ? <Users size={12} /> : <User size={12} />}
+                      {template.type === 'shared' ? 'Compartida' : 'Solo'}
+                    </span>
+                    <span>•</span>
+                    <span>{template.items?.length || 0} items</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
+        ) : (
+          filteredProducts.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-center text-gray-500 dark:text-gray-400">
+              <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-2xl flex items-center justify-center mb-4">
+                <Package size={24} className="text-gray-400" />
+              </div>
+              <p className="font-medium text-gray-900 dark:text-gray-100 mb-1">No hay productos</p>
+              <p className="text-sm">Tus productos aprendidos aparecerán aquí.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredProducts.map(item => (
+                <div key={item.id} className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 flex items-center gap-4">
+                  <div className="w-12 h-12 bg-gray-50 dark:bg-gray-700 rounded-xl flex items-center justify-center text-2xl shrink-0">
+                    {item.emoji || <Package size={24} className="text-gray-400" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm truncate">{item.name}</h3>
+                      <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-[10px] font-medium rounded-full shrink-0">
+                        {item.defaultCategory}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
+                      {(item.presentation || item.unitType) && (
+                        <span>{item.presentation} {item.unitType}</span>
+                      )}
+                      {item.lastPrice != null && (
+                        <span className="font-medium text-indigo-600 dark:text-indigo-400">
+                          {item.lastCurrency} {item.lastPrice.toFixed(2)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      if (window.confirm('¿Estás seguro de eliminar este producto de tu memoria?')) {
+                        removeCatalogItem(item.id);
+                      }
+                    }}
+                    className="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 bg-gray-50 dark:bg-gray-700 rounded-lg shrink-0 transition-colors"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )
         )}
       </div>
 
-      <button
-        onClick={() => setIsAdding(true)}
-        className="absolute bottom-24 right-6 w-14 h-14 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg shadow-indigo-600/30 hover:bg-indigo-700 active:scale-95 transition-all z-10"
-      >
-        <Plus size={24} />
-      </button>
+      {activeTab === 'templates' && (
+        <button
+          onClick={() => setIsAdding(true)}
+          className="absolute bottom-24 right-6 w-14 h-14 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg shadow-indigo-600/30 hover:bg-indigo-700 active:scale-95 transition-all z-10"
+        >
+          <Plus size={24} />
+        </button>
+      )}
 
       {/* Add/Edit Modal */}
       <AnimatePresence>

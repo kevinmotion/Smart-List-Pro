@@ -648,7 +648,7 @@ export const LobbyScreen = () => {
       {/* Template Selection Modal */}
       <AnimatePresence>
         {isTemplateSelectOpen && !selectedTemplateId && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4">
+          <div key="template-select" className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4">
             <motion.div 
               initial={{ opacity: 0, y: 50 }}
               animate={{ opacity: 1, y: 0 }}
@@ -698,6 +698,7 @@ export const LobbyScreen = () => {
       <AnimatePresence>
         {selectedTemplateId && (
           <TemplateImportModal
+            key="template-import"
             isOpen={!!selectedTemplateId}
             onClose={() => setSelectedTemplateId(null)}
             template={templates.find(t => t.id === selectedTemplateId)}
@@ -710,7 +711,7 @@ export const LobbyScreen = () => {
       {/* Wizard Modal */}
       <AnimatePresence>
         {isWizardOpen && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4">
+          <div key="wizard-modal" className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4">
             <motion.div 
               initial={{ opacity: 0, y: 50 }}
               animate={{ opacity: 1, y: 0 }}

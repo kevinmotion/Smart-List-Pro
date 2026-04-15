@@ -147,7 +147,7 @@ service cloud.firestore {
 
     function isValidCatalogItem() {
       return hasRequiredFields(['ownerId', 'name']) &&
-             hasOnlyAllowedFields(['id', 'ownerId', 'name', 'emoji', 'presentation', 'unitType', 'defaultCategory']) &&
+             hasOnlyAllowedFields(['id', 'ownerId', 'name', 'emoji', 'presentation', 'unitType', 'defaultCategory', 'defaultCategoryEmoji', 'lastPrice', 'lastCurrency', 'priceHistory']) &&
              isValidString('name', 1, 100) &&
              request.resource.data.ownerId == request.auth.uid;
     }

@@ -1,12 +1,12 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
-import { useStore, Item, Alternative, saveImage } from "../store";
+import { useStore, Item, Alternative, saveImage, normalizeText } from "../store";
 import localforage from "localforage";
 import { Lightbox } from "../components/Lightbox";
 import { GroupedItemList } from "../components/GroupedItemList";
 import { compressImage } from "../utils/image";
 import { getInSoles, getNormalizedPrice, getBaseUnit } from "../utils/currency";
 import { v4 as uuidv4 } from "uuid";
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Plus,
   Minus,
@@ -30,6 +30,8 @@ import {
   Wallet,
   Wallet2,
   MapPin,
+  TrendingUp,
+  TrendingDown,
 } from "lucide-react";
 import { clsx } from "clsx";
 import { NOTION_COLORS } from "../constants";
@@ -54,6 +56,8 @@ export const HomeScreen = () => {
     lists,
     activeListId,
     locations,
+    catalogItems,
+    ensureTagExists,
   } = useStore();
 
   const activeList = lists.find((l) => l.id === activeListId);
@@ -80,6 +84,22 @@ export const HomeScreen = () => {
   const [paidById, setPaidById] = useState<string>("");
   const [packedById, setPackedById] = useState<string>("");
   const [alternatives, setAlternatives] = useState<Alternative[]>([]);
+  
+  // Predictive Search State
+  const [suggestions, setSuggestions] = useState<typeof catalogItems>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [previousPriceMemory, setPreviousPriceMemory] = useState<number | null>(null);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // FAB Menu State
   const [showFabMenu, setShowFabMenu] = useState(false);
@@ -825,6 +845,7 @@ export const HomeScreen = () => {
         <AnimatePresence>
           {showFabMenu && (
             <motion.div
+              key="fab-menu"
               initial="hidden"
               animate="visible"
               exit="hidden"
@@ -1279,7 +1300,7 @@ export const HomeScreen = () => {
                 <>
                   {/* Fila 1: Concepto */}
                   <div className="flex gap-2 items-end relative">
-                    <div className="flex-1">
+                    <div className="flex-1" ref={suggestionsRef}>
                       <label className="block text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-0.5 ml-2">
                         Concepto
                       </label>
@@ -1297,11 +1318,85 @@ export const HomeScreen = () => {
                           required
                           type="text"
                           value={name}
-                          onChange={(e) => setName(e.target.value)}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setName(val);
+                            if (val.trim()) {
+                              const filtered = catalogItems
+                                .filter(item => normalizeText(item.name).includes(normalizeText(val)))
+                                .slice(0, 2);
+                              setSuggestions(filtered);
+                              setShowSuggestions(filtered.length > 0);
+                            } else {
+                              setShowSuggestions(false);
+                            }
+                          }}
+                          onFocus={() => {
+                            if (name.trim() && suggestions.length > 0) {
+                              setShowSuggestions(true);
+                            }
+                          }}
                           className="flex-1 w-full bg-transparent border-none text-sm font-semibold placeholder-gray-400 focus:outline-none focus:ring-0"
                           placeholder="Ej. Cerveza Pilsen"
                         />
                       </div>
+                      
+                      {/* Predictive Search Dropdown */}
+                      <AnimatePresence>
+                        {showSuggestions && (
+                          <motion.div
+                            key="suggestions-dropdown"
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            className="absolute left-0 right-12 top-full mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl z-50 overflow-hidden"
+                          >
+                            {suggestions.map((suggestion) => (
+                              <button
+                                key={suggestion.id}
+                                type="button"
+                                onClick={() => {
+                                  setName(suggestion.name);
+                                  setEmoji(suggestion.emoji || '🛒');
+                                  setPresentation(suggestion.presentation || '1');
+                                  setUnit(suggestion.unitType || 'un');
+                                  if (suggestion.lastPrice != null) {
+                                    setPrice(suggestion.lastPrice.toString());
+                                    setPreviousPriceMemory(suggestion.lastPrice);
+                                  }
+                                  if (suggestion.lastCurrency) {
+                                    setCurrency(suggestion.lastCurrency);
+                                  }
+                                  
+                                  const newOrExistingTagId = ensureTagExists(suggestion.defaultCategory, suggestion.defaultCategoryEmoji || suggestion.emoji || undefined);
+                                  setTagId(newOrExistingTagId);
+                                  
+                                  setShowSuggestions(false);
+                                }}
+                                className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors border-b border-gray-100 dark:border-gray-700/50 last:border-0 flex items-center gap-3"
+                              >
+                                <span className="text-2xl">{suggestion.emoji || '🛒'}</span>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
+                                    {suggestion.name}
+                                  </p>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                                    {suggestion.presentation} {suggestion.unitType}
+                                  </p>
+                                </div>
+                                {suggestion.lastPrice != null && (
+                                  <div className="text-right shrink-0">
+                                    <p className="text-xs font-medium text-indigo-600 dark:text-indigo-400">
+                                      {suggestion.lastCurrency || 'S/'} {suggestion.lastPrice.toFixed(2)}
+                                    </p>
+                                    <p className="text-[9px] text-gray-400">Último precio</p>
+                                  </div>
+                                )}
+                              </button>
+                            ))}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
                     <button
                       type="button"
@@ -1329,7 +1424,7 @@ export const HomeScreen = () => {
                         <button
                           type="button"
                           onClick={() => setCurrency(currency === "S/" ? "$" : "S/")}
-                          className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold hover:text-cyan-600 focus:outline-none text-xs"
+                          className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold hover:text-cyan-600 focus:outline-none text-xs z-10"
                         >
                           {currency || "S/"}
                         </button>
@@ -1338,9 +1433,20 @@ export const HomeScreen = () => {
                           inputMode="decimal"
                           value={price}
                           onChange={(e) => handleNumberInput(e.target.value, setPrice)}
-                          className="w-full h-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full pl-10 pr-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                          placeholder="0.00"
+                          className="w-full h-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full pl-10 pr-10 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          placeholder={previousPriceMemory !== null ? `Último: ${previousPriceMemory}` : "0.00"}
                         />
+                        {price && previousPriceMemory !== null && (
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none">
+                            {parseFloat(price) > previousPriceMemory ? (
+                              <TrendingUp size={16} className="text-red-500" />
+                            ) : parseFloat(price) < previousPriceMemory && parseFloat(price) > 0 ? (
+                              <TrendingDown size={16} className="text-green-500" />
+                            ) : parseFloat(price) === previousPriceMemory ? (
+                              <Minus size={16} className="text-gray-400" />
+                            ) : null}
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div>

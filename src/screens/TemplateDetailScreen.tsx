@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useStore, TemplateItem } from '../store';
+import React, { useState, useRef, useEffect } from 'react';
+import { useStore, TemplateItem, normalizeText } from '../store';
 import { ChevronLeft, Edit2, Trash2, X, Check, Users, User, MapPin, Tag, Package, Plus, ChevronDown, ShoppingCart, Home, PartyPopper, Plane, Gift, Utensils, Backpack, Car, Dog, Baby, Briefcase, GraduationCap, Heart, Dumbbell, Music, Camera, Gamepad2, Coffee, Pizza, IceCream, Sun, Moon, Cloud, TreeDeciduous, Mountain, Waves, Palette, Brush, Pen, Book, Wallet, CreditCard, Smartphone, Laptop, Zap, Droplets, Flame, Hammer, Wrench, Shield, Key, Lock, Calendar } from 'lucide-react';
 import { clsx } from 'clsx';
 import { v4 as uuidv4 } from 'uuid';
@@ -11,13 +11,28 @@ const IconMap: Record<string, any> = {
 };
 
 export function TemplateDetailScreen() {
-  const { templates, activeTemplateId, setActiveTemplateId, updateTemplate } = useStore();
+  const { templates, activeTemplateId, setActiveTemplateId, updateTemplate, catalogItems } = useStore();
   const template = templates.find(t => t.id === activeTemplateId);
 
   const [activeTab, setActiveTab] = useState<'categories' | 'locations' | 'people' | 'groups' | 'items'>('categories');
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
+
+  // Predictive search states
+  const [suggestions, setSuggestions] = useState<typeof catalogItems>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Inline Add states
   const [newItemName, setNewItemName] = useState('');
@@ -602,15 +617,93 @@ export function TemplateDetailScreen() {
                       placeholder="🛒"
                     />
                   </div>
-                  <div className="flex-1 flex flex-col gap-1">
+                  <div className="flex-1 flex flex-col gap-1 relative" ref={suggestionsRef}>
                     <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Nombre *</label>
                     <input
                       required
                       type="text"
                       value={itemFormName}
-                      onChange={(e) => setItemFormName(e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setItemFormName(val);
+                        if (val.trim()) {
+                          const filtered = catalogItems
+                            .filter(item => normalizeText(item.name).includes(normalizeText(val)))
+                            .slice(0, 2);
+                          setSuggestions(filtered);
+                          setShowSuggestions(filtered.length > 0);
+                        } else {
+                          setShowSuggestions(false);
+                        }
+                      }}
+                      onFocus={() => {
+                        if (itemFormName.trim() && suggestions.length > 0) {
+                          setShowSuggestions(true);
+                        }
+                      }}
                       className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl h-12 px-4 text-sm font-semibold placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                     />
+
+                    {/* Predictive Search Dropdown */}
+                    <AnimatePresence>
+                      {showSuggestions && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                          transition={{ duration: 0.15 }}
+                          className="absolute z-50 top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden"
+                        >
+                          {suggestions.map((suggestion) => (
+                            <button
+                              key={suggestion.id}
+                              type="button"
+                              onClick={() => {
+                                setItemFormName(suggestion.name);
+                                setItemFormEmoji(suggestion.emoji || '');
+                                setItemFormPresentation(suggestion.presentation ? Number(suggestion.presentation) : '');
+                                setItemFormUnit(suggestion.unitType || '');
+                                
+                                const normalizedCategoryName = normalizeText(suggestion.defaultCategory);
+                                const existingCategory = template?.categories?.find(c => normalizeText(c.name) === normalizedCategoryName);
+                                
+                                if (existingCategory) {
+                                  setItemFormCategoryId(existingCategory.id);
+                                } else if (template) {
+                                  const newCategoryId = uuidv4();
+                                  const newCategory = {
+                                    id: newCategoryId,
+                                    name: suggestion.defaultCategory,
+                                    emoji: suggestion.defaultCategoryEmoji || suggestion.emoji || '🏷️'
+                                  };
+                                  updateTemplate(template.id, {
+                                    categories: [...(template.categories || []), newCategory]
+                                  });
+                                  setItemFormCategoryId(newCategoryId);
+                                }
+                                
+                                setShowSuggestions(false);
+                              }}
+                              className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors flex items-center gap-3 border-b border-gray-50 dark:border-gray-700/50 last:border-0"
+                            >
+                              <div className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-lg shrink-0">
+                                {suggestion.emoji || <Package size={16} className="text-gray-400" />}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">
+                                  {suggestion.name}
+                                </div>
+                                {(suggestion.presentation || suggestion.unitType) && (
+                                  <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                                    {suggestion.presentation} {suggestion.unitType}
+                                  </div>
+                                )}
+                              </div>
+                            </button>
+                          ))}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 </div>
 
